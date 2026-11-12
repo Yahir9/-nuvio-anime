@@ -1,6 +1,7 @@
 
 #!/usr/bin/env python3
-# Nuvio Anime - Catalogo, episodios y streams
+# Nuvio Anime - Catalogo, episodios y reproduccion
+# GitHub Actions + GitHub Pages
 
 import json
 import os
@@ -28,10 +29,17 @@ def leer(ruta, defecto):
 
 def guardar(ruta, datos):
     destino = PUBLIC / ruta
-    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
     destino.write_text(
-        json.dumps(datos, ensure_ascii=False, indent=2)
-        + "\n",
+        json.dumps(
+            datos,
+            ensure_ascii=False,
+            indent=2
+        ) + "\n",
         encoding="utf-8"
     )
 
@@ -60,6 +68,7 @@ def url_valida(url, media=False):
             return False
 
         return True
+
     except ValueError:
         return False
 
@@ -69,16 +78,18 @@ def fuente_vigente(url):
         return False
 
     query = parse_qs(urlparse(url).query)
-    valor = query.get("e", [])
+    vencimiento = query.get("e", [])
 
-    if valor:
+    if vencimiento:
         try:
-            limite = int(valor[0])
+            limite = int(vencimiento[0])
             ahora = int(
                 datetime.now(timezone.utc).timestamp()
             )
+
             return limite > ahora + 300
-        except (TypeError, ValueError, IndexError):
+
+        except (ValueError, TypeError, IndexError):
             return False
 
     return True
@@ -87,12 +98,22 @@ def fuente_vigente(url):
 def obtener_catalogo():
     catalogo = {}
 
-    for archivo in sorted(
+    archivos = sorted(
         DATA.glob("anime-pagina-*.json")
-    ):
-        datos = leer(archivo, {"metas": []})
+    )
 
-        for anime in datos.get("metas", []):
+    print("Archivos de catalogo:", len(archivos))
+
+    for archivo in archivos:
+        datos = leer(archivo, {"metas": []})
+        animes = datos.get("metas", [])
+
+        if not isinstance(animes, list):
+            continue
+
+        agregados = 0
+
+        for anime in animes:
             if not isinstance(anime, dict):
                 continue
 
@@ -108,17 +129,18 @@ def obtener_catalogo():
             if not SLUG.fullmatch(ident[3:]):
                 continue
 
-            if not isinstance(nombre, str) or not nombre:
+            if not isinstance(nombre, str) or not nombre.strip():
                 continue
 
             ficha = {
                 "id": ident,
                 "type": "series",
-                "name": nombre
+                "name": nombre.strip()
             }
 
             for campo in ("poster", "background"):
                 valor = anime.get(campo)
+
                 if url_valida(valor):
                     ficha[campo] = valor
 
@@ -128,24 +150,41 @@ def obtener_catalogo():
                 ficha["description"] = descripcion
 
             catalogo[ident] = ficha
+            agregados += 1
+
+        print(
+            "Importado:",
+            archivo.name,
+            "-",
+            agregados,
+            "registros"
+        )
 
     return catalogo
 
 
-def registrar_episodio(episodios, ident, temporada, numero):
+def registrar_episodio(
+    episodios,
+    ident,
+    temporada,
+    numero
+):
     try:
         temporada = int(temporada)
         numero = int(numero)
+
     except (ValueError, TypeError):
         return None
 
-    if not (1 <= temporada <= 100):
+    if not 1 <= temporada <= 100:
         return None
 
-    if not (1 <= numero <= 10000):
+    if not 1 <= numero <= 10000:
         return None
 
-    video_id = f"{ident}:{temporada}:{numero}"
+    video_id = (
+        f"{ident}:{temporada}:{numero}"
+    )
 
     episodios.setdefault(ident, {})
 
@@ -173,7 +212,7 @@ def importar_episodios(catalogo, episodios):
 
         ident = item.get("id")
 
-        # Solo importar series existentes
+        # Solo agregar episodios a animes existentes
         if ident not in catalogo:
             continue
 
@@ -187,7 +226,10 @@ def importar_episodios(catalogo, episodios):
         if video_id:
             nuevos += 1
 
-    print("Episodios importados desde HTML:", nuevos)
+    print(
+        "Episodios importados desde HTML:",
+        nuevos
+    )
 
 
 def importar_fuentes(catalogo, episodios):
@@ -200,6 +242,12 @@ def importar_fuentes(catalogo, episodios):
         DATA / "extracted_sources.json",
         {"sources": []}
     ).get("sources", [])
+
+    if not isinstance(originales, list):
+        originales = []
+
+    if not isinstance(extraidas, list):
+        extraidas = []
 
     fuentes = originales + extraidas
     streams = {}
@@ -228,7 +276,7 @@ def importar_fuentes(catalogo, episodios):
 
         ident = "na:" + slug
 
-        # Mantener la serie de prueba existente
+        # Registrar series que no esten en el catalogo
         if ident not in catalogo:
             catalogo[ident] = {
                 "id": ident,
@@ -246,8 +294,8 @@ def importar_fuentes(catalogo, episodios):
         if video_id is None:
             continue
 
-        # HTML identifica episodios,
-        # pero no es una fuente reproducible.
+        # Un HTML registra un episodio,
+        # pero no es una fuente de video.
         if tipo != "direct":
             continue
 
@@ -259,11 +307,15 @@ def importar_fuentes(catalogo, episodios):
             url = fuente.get("url", "")
 
         if not fuente_vigente(url):
-            print("Fuente ausente o vencida:", video_id)
+            print(
+                "Fuente ausente o vencida:",
+                video_id
+            )
             continue
 
         streams.setdefault(video_id, [])
 
+        # No repetir el mismo enlace
         if any(
             item["url"] == url
             for item in streams[video_id]
@@ -276,45 +328,68 @@ def importar_fuentes(catalogo, episodios):
             "url": url
         })
 
+        print("Stream agregado:", video_id)
+
     return streams
 
 
 def generar():
-    print("=== NUVIO ANIME ===")
+    print("==============================")
+    print("INICIANDO NUVIO ANIME")
+    print("==============================")
 
-    PUBLIC.mkdir(parents=True, exist_ok=True)
+    PUBLIC.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
     catalogo = obtener_catalogo()
     episodios = {}
 
-    # Incorporar episodios detectados
-    importar_episodios(catalogo, episodios)
+    # IMPORTANTE:
+    # Primero registrar fuentes y el anime
+    # Meitantei Precure!
+    streams = importar_fuentes(
+        catalogo,
+        episodios
+    )
 
-    # Mantener Desu HTML y HLS original
-    streams = importar_fuentes(catalogo, episodios)
+    # Despues incorporar los episodios HTML
+    importar_episodios(
+        catalogo,
+        episodios
+    )
 
     if not catalogo:
-        raise RuntimeError("El catalogo esta vacio")
+        raise RuntimeError(
+            "No se encontraron animes"
+        )
 
     metas = sorted(
         catalogo.values(),
         key=lambda x: x["name"].casefold()
     )
 
-    # Catalogo
-    for inicio in range(0, len(metas), 100):
-        ruta = (
-            "catalog/series/anime.json"
-            if inicio == 0
-            else f"catalog/series/anime/skip={inicio}.json"
-        )
+    # Generar catalogo
+    for inicio in range(
+        0,
+        len(metas),
+        100
+    ):
+        if inicio == 0:
+            ruta = "catalog/series/anime.json"
+        else:
+            ruta = (
+                "catalog/series/anime/"
+                f"skip={inicio}.json"
+            )
 
         guardar(
             ruta,
             {"metas": metas[inicio:inicio + 100]}
         )
 
-    # Metadatos y streams de cada episodio
+    # Crear fichas de animes y episodios
     for anime in metas:
         ident = anime["id"]
 
@@ -323,40 +398,72 @@ def generar():
         )
 
         videos.sort(
-            key=lambda x: (x["season"], x["episode"])
+            key=lambda x: (
+                x["season"],
+                x["episode"]
+            )
         )
 
         guardar(
             f"meta/series/{ident}.json",
-            {"meta": {**anime, "videos": videos}}
+            {
+                "meta": {
+                    **anime,
+                    "videos": videos
+                }
+            }
         )
 
+        # Crear fuentes para cada episodio
         for video in videos:
             video_id = video["id"]
 
             guardar(
                 f"stream/series/{video_id}.json",
-                {"streams": streams.get(video_id, [])}
+                {
+                    "streams": streams.get(
+                        video_id,
+                        []
+                    )
+                }
             )
 
-    manifest = leer(ROOT / "manifest.json", {})
+    # Publicar manifiesto
+    manifest = leer(
+        ROOT / "manifest.json",
+        {}
+    )
 
     if not manifest:
-        raise RuntimeError("Falta manifest.json")
+        raise RuntimeError(
+            "No se encontro manifest.json"
+        )
 
-    guardar("manifest.json", manifest)
+    guardar(
+        "manifest.json",
+        manifest
+    )
+
+    # GitHub Pages
     (PUBLIC / ".nojekyll").touch()
 
+    total_episodios = sum(
+        len(lista)
+        for lista in episodios.values()
+    )
+
+    total_streams = sum(
+        len(lista)
+        for lista in streams.values()
+    )
+
+    print("==============================")
+    print("CATALOGO GENERADO")
     print("Animes:", len(metas))
-    print(
-        "Episodios:",
-        sum(len(x) for x in episodios.values())
-    )
-    print(
-        "Streams vigentes:",
-        sum(len(x) for x in streams.values())
-    )
-    print("Catalogo generado correctamente")
+    print("Episodios:", total_episodios)
+    print("Streams vigentes:", total_streams)
+    print("GitHub Pages: preparado")
+    print("==============================")
 
 
 if __name__ == "__main__":
