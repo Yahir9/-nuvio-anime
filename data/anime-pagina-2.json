@@ -1,0 +1,185 @@
+
+{
+  "metas": [
+    {
+      "id": "na:tensei-goblin-dakedo-shitsumon-aru",
+      "type": "series",
+      "name": "Tensei Goblin dakedo Shitsumon Aru?",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/tensei-goblin-dakedo-shitsumon-aru.jpg"
+    },
+    {
+      "id": "na:dark-summoner-to-dekiteiru",
+      "type": "series",
+      "name": "Dark Summoner to Dekiteiru",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/dark-summoner-to-dekiteiru.jpg"
+    },
+    {
+      "id": "na:kanojo-no-tomodachi",
+      "type": "series",
+      "name": "Kanojo no Tomodachi",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/kanojo-no-tomodachi.jpg"
+    },
+    {
+      "id": "na:ao-no-hako-season-2",
+      "type": "series",
+      "name": "Ao no Hako Season 2",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/ao-no-hako-season-2.jpg"
+    },
+    {
+      "id": "na:ao-ashi-season-2",
+      "type": "series",
+      "name": "Ao Ashi Season 2",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/ao-ashi-season-2.jpg"
+    },
+    {
+      "id": "na:ranma-2024-3rd-season",
+      "type": "series",
+      "name": "Ranma ½ (2024) 3rd Season",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/ranma-2024-3rd-season.jpg"
+    },
+    {
+      "id": "na:seitokai-ni-mo-ana-wa-aru",
+      "type": "series",
+      "name": "Seitokai ni mo Ana wa Aru!",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/seitokai-ni-mo-ana-wa-aru.jpg"
+    },
+    {
+      "id": "na:mezametara-saikyou-soubi-to-uchuusenmochi-datta-node-ikkodate-mezashite-youhei-toshite-jiyuu-ni-ikitai",
+      "type": "series",
+      "name": "Mezametara Saikyou Soubi to Uchuusenmochi Datta node, Ikkodate Mezashite Youhei toshite Jiyuu ni Ikitai",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/mezametara-saikyou-soubi-to-uchuusenmochi-datta-node-ikkodate-mezashite-youhei-toshite-jiyuu-ni-ikitai.jpg"
+    },
+    {
+      "id": "na:magical-explorer",
+      "type": "series",
+      "name": "Magical★Explorer",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/magical-explorer.jpg"
+    },
+    {
+      "id": "na:yowaki-max-reijou-nanoni-ratsuwan-konyakusha-sama-no-kake-ni-notte-shimatta",
+      "type": "series",
+      "name": "Yowaki Max Reijou nanoni, Ratsuwan Konyakusha-sama no Kake ni Notte Shimatta",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/yowaki-max-reijou-nanoni-ratsuwan-konyakusha-sama-no-kake-ni-notte-shimatta.jpg"
+    },
+    {
+      "id": "na:tank-chair",
+      "type": "series",
+      "name": "Tank Chair",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/tank-chair.jpg"
+    },
+    {
+      "id": "na:kashita-maryoku-wa-revo-barai-de-kyousei-choushuu",
+      "type": "series",
+      "name": "Kashita Maryoku wa \"Revo Barai\" de Kyousei Choushuu",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/kashita-maryoku-wa-revo-barai-de-kyousei-choushuu.jpg"
+    },
+    {
+      "id": "na:hotel-inhumans-2nd-season",
+      "type": "series",
+      "name": "Hotel Inhumans 2nd Season",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/hotel-inhumans-2nd-season.jpg"
+    },
+    {
+      "id": "na:ojisan-wa-kawaii-mono-ga-osuki",
+      "type": "series",
+      "name": "Ojisan wa Kawaii Mono ga Osuki.",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/ojisan-wa-kawaii-mono-ga-osuki.jpg"
+    },
+    {
+      "id": "na:mahou-no-shimai-lulutto-lilly-part-2",
+      "type": "series",
+      "name": "Mahou no Shimai Lulutto Lilly Part 2",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/mahou-no-shimai-lulutto-lilly-part-2.jpg"
+    },
+    {
+      "id": "na:black-clover-2nd-season",
+      "type": "series",
+      "name": "Black Clover 2nd Season",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/black-clover-2nd-season.jpg"
+    },
+    {
+      "id": "na:tokyo-revengers-santen-sensou-hen",
+      "type": "series",
+      "name": "Tokyo Revengers: Santen Sensou-hen",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/tokyo-revengers-santen-sensou-hen.jpg"
+    },
+    {
+      "id": "na:yasei-no-last-boss-ga-arawareta-2nd-season",
+      "type": "series",
+      "name": "Yasei no Last Boss ga Arawareta! 2nd Season",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/yasei-no-last-boss-ga-arawareta-2nd-season.jpg"
+    },
+    {
+      "id": "na:tensei-shita-daiseijo-wa-seijo-de-aru-koto-wo-hitakakusu",
+      "type": "series",
+      "name": "Tensei shita Daiseijo wa, Seijo de Aru Koto wo Hitakakusu",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/tensei-shita-daiseijo-wa-seijo-de-aru-koto-wo-hitakakusu.jpg"
+    },
+    {
+      "id": "na:vertex-force",
+      "type": "series",
+      "name": "Vertex Force",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/vertex-force.jpg"
+    },
+    {
+      "id": "na:marronnier-oukoku-no-shichinin-no-kishi",
+      "type": "series",
+      "name": "Marronnier Oukoku no Shichinin no Kishi",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/marronnier-oukoku-no-shichinin-no-kishi.jpg"
+    },
+    {
+      "id": "na:keroro-gunsou-2026",
+      "type": "series",
+      "name": "Keroro Gunsou☆ 2026",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/keroro-gunsou-2026.jpg"
+    },
+    {
+      "id": "na:da-wang-rao-ming-3",
+      "type": "series",
+      "name": "Da Wang Rao Ming 3",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/da-wang-rao-ming-3.jpg"
+    },
+    {
+      "id": "na:kusuriya-no-hitorigoto-3rd-season",
+      "type": "series",
+      "name": "Kusuriya no Hitorigoto 3rd Season",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/kusuriya-no-hitorigoto-3rd-season.jpg"
+    },
+    {
+      "id": "na:tempal-item-no-chikara",
+      "type": "series",
+      "name": "Tempal: Item no Chikara",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/tempal-item-no-chikara.jpg"
+    },
+    {
+      "id": "na:kizu-darake-seijo-yori-houfuku-wo-komete-season-2",
+      "type": "series",
+      "name": "Kizu darake Seijo yori Houfuku wo Komete Season 2",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/kizu-darake-seijo-yori-houfuku-wo-komete-season-2.jpg"
+    },
+    {
+      "id": "na:aoki-denshou-welsh-shedar",
+      "type": "series",
+      "name": "Aoki Denshou Welsh & Shedar",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/aoki-denshou-welsh-shedar.jpg"
+    },
+    {
+      "id": "na:kikansha-no-mahou-wa-tokubetsu-desu-2nd-season",
+      "type": "series",
+      "name": "Kikansha no Mahou wa Tokubetsu desu 2nd Season",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/kikansha-no-mahou-wa-tokubetsu-desu-2nd-season.jpg"
+    },
+    {
+      "id": "na:koori-no-jouheki-2nd-season",
+      "type": "series",
+      "name": "Koori no Jouheki 2nd Season",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/koori-no-jouheki-2nd-season.jpg"
+    },
+    {
+      "id": "na:tougen-anki-nikko-kegon-no-taki-hen",
+      "type": "series",
+      "name": "Tougen Anki: Nikko Kegon no Taki-hen",
+      "poster": "https://cdn.jkdesa.com/assets/images/animes/image/tougen-anki-nikko-kegon-no-taki-hen.jpg"
+    }
+  ]
+}
