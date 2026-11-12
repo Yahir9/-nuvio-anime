@@ -12,7 +12,7 @@
  */
 
 // Clave gratuita de https://www.themoviedb.org/settings/api  (también se acepta la variable de entorno TMDB_KEY)
-const TMDB_KEY = (typeof process !== 'undefined' && process.env && process.env.TMDB_KEY) || 'PON_AQUI_TU_API_KEY_DE_TMDB';
+const TMDB_KEY = (typeof process !== 'undefined' && process.env && process.env.TMDB_KEY) || 'f07a533e16343c03aa94504941a905fc';
 
 const BASE = 'https://jkanime.net';
 const FUENTE = 'JKAnime';
