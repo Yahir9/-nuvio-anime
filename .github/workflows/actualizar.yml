@@ -11,8 +11,8 @@ on:
     paths:
       - "sources.json"
       - "scripts/build.py"
-      - ".github/workflows/actualizar.yml"
       - "manifest.json"
+      - ".github/workflows/actualizar.yml"
 
 permissions:
   contents: read
@@ -44,10 +44,11 @@ jobs:
       - name: Generar catalogo y fuentes
         env:
           HLS_SOURCE_URL: ${{ secrets.HLS_SOURCE_URL }}
+          ANIME_FEED_URL: ${{ secrets.ANIME_FEED_URL }}
         run: |
           python scripts/build.py
 
-      - name: Preparar archivos publicos
+      - name: Preparar archivos
         run: |
           mkdir -p public
           cp manifest.json public/
