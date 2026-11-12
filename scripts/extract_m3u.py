@@ -1,240 +1,253 @@
 
 #!/usr/bin/env python3
-# M3U AutoExtractor - Nuvio Anime
-# Extrae enlaces multimedia expuestos en HTML autorizado.
+# Nuvio Anime - Extractor HTML local
+# Detecta HLS directos y codificados en Base64
+# No necesita acceso web ni servidores adicionales
 
+import base64
+import html
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
-
-import requests
-from bs4 import BeautifulSoup
+from urllib.parse import urlparse, parse_qs
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
-CONFIG = DATA / "players.json"
+HTML_DIR = DATA / "html"
 OUTPUT = DATA / "extracted_sources.json"
 
 EXTENSIONS = (".m3u8", ".mp4", ".mpd")
-TIMEOUT = 15
-MAX_HTML = 2_000_000
 
-session = requests.Session()
-session.headers.update({
-    "User-Agent": "NuvioAnime/1.0",
-    "Accept": "text/html,application/xhtml+xml"
-})
+# Formato de nombre:
+# anime-slug-1-40.html
+# donde 1 = temporada y 40 = episodio
+
+FILENAME_PATTERN = re.compile(
+    r"^([a-z0-9][a-z0-9-]*)-(\d+)-(\d+)$"
+)
+
+URL_PATTERN = re.compile(
+    r'https?://[^\s"\'<>\\]+',
+    re.IGNORECASE
+)
+
+ATOB_PATTERN = re.compile(
+    r"""atob\s*\(\s*['"]([A-Za-z0-9+/=]+)['"]\s*\)""",
+    re.IGNORECASE
+)
 
 
-def valid_media(url):
+def media_valida(url):
     try:
-        p = urlparse(url)
-        return (
-            p.scheme == "https"
-            and bool(p.hostname)
-            and p.path.lower().endswith(EXTENSIONS)
-            and not p.username
-            and not p.password
-        )
+        parsed = urlparse(url)
+
+        if parsed.scheme != "https":
+            return False
+
+        if not parsed.hostname:
+            return False
+
+        if parsed.username or parsed.password:
+            return False
+
+        return parsed.path.lower().endswith(EXTENSIONS)
+
     except ValueError:
         return False
 
 
-def valid_page(url):
-    try:
-        p = urlparse(url)
-        return (
-            p.scheme == "https"
-            and bool(p.hostname)
-            and not p.username
-            and not p.password
-        )
-    except ValueError:
+def enlace_vigente(url):
+    if not media_valida(url):
         return False
 
+    query = parse_qs(urlparse(url).query)
+    expiracion = query.get("e", [])
 
-def download_html(url):
-    response = session.get(
-        url,
-        timeout=TIMEOUT,
-        allow_redirects=False
+    if expiracion:
+        try:
+            limite = int(expiracion[0])
+            ahora = int(
+                datetime.now(timezone.utc).timestamp()
+            )
+
+            # Margen de seguridad de 5 minutos
+            return limite > ahora + 300
+
+        except (ValueError, IndexError):
+            return False
+
+    return True
+
+
+def normalizar(texto):
+    return html.unescape(
+        texto.replace("\\/", "/")
     )
-    response.raise_for_status()
-
-    ctype = response.headers.get(
-        "Content-Type", ""
-    ).lower()
-
-    if "html" not in ctype:
-        raise ValueError(
-            "La respuesta no es HTML: " + ctype
-        )
-
-    if len(response.content) > MAX_HTML:
-        raise ValueError("HTML demasiado grande")
-
-    return response.text
 
 
-def extract_urls(html, base):
-    found = set()
-    soup = BeautifulSoup(html, "html.parser")
+def buscar_urls(texto):
+    encontrados = set()
+    texto = normalizar(texto)
 
-    # Etiquetas HTML de multimedia
-    for tag in soup.select(
-        "video[src], source[src], a[href]"
-    ):
-        raw = tag.get("src") or tag.get("href")
-        if not raw:
+    for coincidencia in URL_PATTERN.findall(texto):
+        url = coincidencia.rstrip(");,}]")
+
+        if media_valida(url):
+            encontrados.add(url)
+
+    return encontrados
+
+
+def extraer_base64(texto):
+    encontrados = set()
+
+    for codificado in ATOB_PATTERN.findall(texto):
+        try:
+            decoded = base64.b64decode(
+                codificado,
+                validate=True
+            ).decode("utf-8")
+
+            encontrados.update(
+                buscar_urls(decoded)
+            )
+
+        except (
+            ValueError,
+            UnicodeDecodeError
+        ):
             continue
 
-        url = urljoin(base, raw)
+    return encontrados
 
-        if valid_media(url):
-            found.add(url)
 
-    # URLs expuestas como texto en scripts HTML
-    texto = html.replace("\\/", "/")
-    texto = texto.replace("&amp;", "&")
+def extraer_de_html(contenido):
+    encontrados = set()
 
-    patron = (
-        r'https://[^\s"\'<>\\]+?'
-        r'(?:\.m3u8|\.mp4|\.mpd)'
-        r'(?:\?[^\s"\'<>\\]*)?'
+    # Detectar URLs visibles en HTML y JavaScript
+    encontrados.update(
+        buscar_urls(contenido)
     )
 
-    for match in re.findall(
-        patron, texto, flags=re.IGNORECASE
-    ):
-        url = match.rstrip(");,}")
+    # Detectar atob('URL_EN_BASE64')
+    encontrados.update(
+        extraer_base64(contenido)
+    )
 
-        if valid_media(url):
-            found.add(url)
-
-    return sorted(found)
+    return sorted(encontrados)
 
 
-def inspect_page(url):
-    if valid_media(url):
-        return [url]
+def procesar_archivo(ruta):
+    nombre = ruta.stem.lower()
+    match = FILENAME_PATTERN.fullmatch(nombre)
 
-    if not valid_page(url):
+    if not match:
+        print(
+            "Nombre de archivo invalido:",
+            ruta.name
+        )
         return []
 
-    html = download_html(url)
-    results = set(extract_urls(html, url))
+    slug = match.group(1)
+    temporada = int(match.group(2))
+    episodio = int(match.group(3))
 
-    # Revisar un iframe autorizado del mismo sitio.
-    soup = BeautifulSoup(html, "html.parser")
-    host = urlparse(url).hostname
+    if temporada < 1 or episodio < 1:
+        print("Temporada o episodio invalido")
+        return []
 
-    for frame in soup.select("iframe[src]")[:3]:
-        target = urljoin(url, frame["src"])
+    contenido = ruta.read_text(
+        encoding="utf-8",
+        errors="replace"
+    )
 
-        if (
-            valid_page(target)
-            and urlparse(target).hostname == host
-        ):
-            try:
-                child = download_html(target)
-                results.update(
-                    extract_urls(child, target)
-                )
-            except (requests.RequestException, ValueError):
-                pass
+    encontrados = extraer_de_html(contenido)
 
-    return sorted(results)
+    vigentes = [
+        url for url in encontrados
+        if enlace_vigente(url)
+    ]
+
+    video_id = (
+        f"na:{slug}:{temporada}:{episodio}"
+    )
+
+    print("-----------------------------")
+    print("Archivo:", ruta.name)
+    print("Episodio:", video_id)
+    print("URLs detectadas:", len(encontrados))
+    print("URLs vigentes:", len(vigentes))
+
+    fuentes = []
+
+    for url in vigentes:
+        fuentes.append({
+            "type": "direct",
+            "id": slug,
+            "name": "Desu HTML",
+            "season": temporada,
+            "episode": episodio,
+            "url": url,
+            "enabled": True
+        })
+
+    return fuentes
 
 
 def main():
-    DATA.mkdir(parents=True, exist_ok=True)
-
-    if not CONFIG.exists():
-        print("No existe data/players.json")
-        OUTPUT.write_text(
-            '{"sources": []}\n',
-            encoding="utf-8"
-        )
-        return
-
-    config = json.loads(
-        CONFIG.read_text(encoding="utf-8")
+    DATA.mkdir(
+        parents=True,
+        exist_ok=True
     )
 
-    result = []
-    seen = set()
+    HTML_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
-    for item in config.get("players", []):
-        if not item.get("enabled", True):
-            continue
+    archivos = sorted(
+        list(HTML_DIR.glob("*.html"))
+        + list(HTML_DIR.glob("*.txt"))
+    )
 
-        slug = item.get("id", "")
-        page = item.get("url", "")
+    print("============================")
+    print("NUVIO ANIME - EXTRACTOR HTML")
+    print("Archivos encontrados:", len(archivos))
+    print("============================")
 
-        if not re.fullmatch(
-            r"[a-z0-9][a-z0-9-]*", slug
-        ):
-            print("ID invalido:", slug)
-            continue
+    fuentes = []
+    duplicados = set()
 
-        try:
-            season = int(item.get("season", 1))
-            episode = int(item.get("episode", 1))
-
-            if season < 1 or episode < 1:
-                continue
-
-            urls = inspect_page(page)
-
-        except (
-            requests.RequestException,
-            ValueError,
-            TypeError
-        ) as error:
-            print(
-                "No se pudo consultar:",
-                slug,
-                str(error)
+    for ruta in archivos:
+        for fuente in procesar_archivo(ruta):
+            key = (
+                fuente["id"],
+                fuente["season"],
+                fuente["episode"],
+                fuente["url"]
             )
-            continue
 
-        print(
-            slug,
-            "episodio",
-            episode,
-            "enlaces encontrados:",
-            len(urls)
-        )
-
-        for url in urls:
-            key = (slug, season, episode, url)
-
-            if key in seen:
+            if key in duplicados:
                 continue
 
-            seen.add(key)
-
-            result.append({
-                "type": "direct",
-                "id": slug,
-                "name": item.get("name", slug),
-                "season": season,
-                "episode": episode,
-                "url": url,
-                "enabled": True
-            })
+            duplicados.add(key)
+            fuentes.append(fuente)
 
     OUTPUT.write_text(
         json.dumps(
-            {"sources": result},
+            {"sources": fuentes},
             ensure_ascii=False,
             indent=2
         ) + "\n",
         encoding="utf-8"
     )
 
-    print("Total de fuentes:", len(result))
+    print("============================")
+    print("Fuentes nuevas:", len(fuentes))
+    print("Archivo generado:")
+    print("data/extracted_sources.json")
+    print("============================")
 
 
 if __name__ == "__main__":
