@@ -1,0 +1,13 @@
+
+{
+  "players": [
+    {
+      "id": "meitantei-precure",
+      "name": "Meitantei Precure!",
+      "season": 1,
+      "episode": 40,
+      "url": "https://jkanime.net/meitantei-precure/40/",
+      "enabled": true
+    }
+  ]
+}
