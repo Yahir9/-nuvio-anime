@@ -1,0 +1,43 @@
+name: Actualizar anime y publicar
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */12 * * *'
+  push:
+    paths:
+      - 'sources.json'
+      - 'scripts/build.py'
+      - '.github/workflows/actualizar.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  generar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generar catálogo y fuentes
+        run: python scripts/build.py
+      - name: Preparar publicación
+        run: |
+          mkdir -p public
+          cp manifest.json public/
+          cp -R catalog meta stream public/
+          touch public/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - uses: actions/deploy-pages@v4
+        id: deployment
