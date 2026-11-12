@@ -3,13 +3,16 @@ name: Actualizar anime y publicar
 
 on:
   workflow_dispatch:
+
   schedule:
-    - cron: '17 */12 * * *'
+    - cron: "17 */12 * * *"
+
   push:
     paths:
-      - 'sources.json'
-      - 'scripts/build.py'
-      - '.github/workflows/actualizar.yml'
+      - "sources.json"
+      - "scripts/build.py"
+      - ".github/workflows/actualizar.yml"
+      - "manifest.json"
 
 permissions:
   contents: read
@@ -17,12 +20,17 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: nuvio-anime-pages
   cancel-in-progress: false
 
 jobs:
   generar:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Descargar repositorio
@@ -31,12 +39,15 @@ jobs:
       - name: Instalar Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Generar catalogo y fuentes
-        run: python scripts/build.py
+        env:
+          HLS_SOURCE_URL: ${{ secrets.HLS_SOURCE_URL }}
+        run: |
+          python scripts/build.py
 
-      - name: Preparar publicacion
+      - name: Preparar archivos publicos
         run: |
           mkdir -p public
           cp manifest.json public/
@@ -45,11 +56,14 @@ jobs:
           cp -R meta stream public/
           touch public/.nojekyll
 
-      - uses: actions/configure-pages@v5
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Subir archivos
+        uses: actions/upload-pages-artifact@v3
         with:
           path: public
 
-      - uses: actions/deploy-pages@v4
+      - name: Publicar addon
         id: deployment
+        uses: actions/deploy-pages@v4
