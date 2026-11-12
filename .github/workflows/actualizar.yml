@@ -1,5 +1,5 @@
 
-name: Actualizar Nuvio Anime y M3U
+name: Actualizar Nuvio Anime
 
 on:
   workflow_dispatch:
@@ -45,30 +45,25 @@ jobs:
           python-version: "3.12"
 
       - name: Instalar dependencias
-        run: |
-          pip install requests beautifulsoup4
+        run: pip install beautifulsoup4
 
-      - name: Buscar fuentes M3U
-        run: |
-          python scripts/extract_m3u.py
+      - name: Detectar episodios
+        run: python scripts/extract_episodes.py
+
+      - name: Extraer fuentes HLS
+        run: python scripts/extract_m3u.py
 
       - name: Generar catalogo Nuvio
         env:
           HLS_SOURCE_URL: ${{ secrets.HLS_SOURCE_URL }}
-        run: |
-          python scripts/build.py
+        run: python scripts/build.py
 
-      - name: Verificar catalogo
+      - name: Verificar resultados
         run: |
           test -f public/manifest.json
           test -f public/catalog/series/anime.json
-
-          python -m json.tool \
-            public/catalog/series/anime.json > /dev/null
-
-      - name: Preparar GitHub Pages
-        run: |
-          touch public/.nojekyll
+          python -m json.tool public/manifest.json > /dev/null
+          python -m json.tool public/catalog/series/anime.json > /dev/null
 
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
