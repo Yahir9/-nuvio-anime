@@ -2,13 +2,27 @@
 {
   "sources": [
     {
-      "type": "direct",
-      "id": "anime-prueba",
-      "name": "Anime de prueba",
+      "type": "html",
+      "id": "meitantei-precure",
+      "name": "Meitantei Precure!",
+      "url": "https://jkanime.net/meitantei-precure/40/",
       "season": 1,
-      "episode": 1,
+      "episode": 40,
+      "enabled": true
+    },
+    {
+      "type": "direct",
+      "id": "meitantei-precure",
+      "name": "Meitantei Precure!",
+      "season": 1,
+      "episode": 40,
       "url_env": "HLS_SOURCE_URL",
       "enabled": true
+    },
+    {
+      "type": "json",
+      "url_env": "ANIME_FEED_URL",
+      "enabled": false
     }
   ]
 }
