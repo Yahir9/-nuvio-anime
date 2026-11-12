@@ -1,0 +1,10 @@
+{
+  "id": "com.yahir9.nuvioanime",
+  "version": "1.0.0",
+  "name": "Nuvio Anime",
+  "description": "Catálogo de anime con fuentes autorizadas, generado mediante GitHub Actions.",
+  "resources": ["catalog", "meta", "stream"],
+  "types": ["series"],
+  "catalogs": [{"type": "series", "id": "anime", "name": "Anime", "extra": [{"name": "skip", "isRequired": false}]}],
+  "idPrefixes": ["na:"]
+}
