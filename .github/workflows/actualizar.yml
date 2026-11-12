@@ -1,5 +1,5 @@
 
-name: Actualizar catalogo Nuvio Anime
+name: Actualizar Nuvio Anime y M3U
 
 on:
   workflow_dispatch:
@@ -28,7 +28,6 @@ concurrency:
 
 jobs:
   generar:
-    name: Generar catalogo y publicar
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -45,22 +44,27 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Generar catalogo y fuentes
+      - name: Instalar dependencias
+        run: |
+          pip install requests beautifulsoup4
+
+      - name: Buscar fuentes M3U
+        run: |
+          python scripts/extract_m3u.py
+
+      - name: Generar catalogo Nuvio
         env:
           HLS_SOURCE_URL: ${{ secrets.HLS_SOURCE_URL }}
-          ANIME_FEED_URL: ${{ secrets.ANIME_FEED_URL }}
         run: |
           python scripts/build.py
 
-      - name: Verificar archivos generados
+      - name: Verificar catalogo
         run: |
           test -f public/manifest.json
           test -f public/catalog/series/anime.json
 
-          python -m json.tool public/manifest.json > /dev/null
-          python -m json.tool public/catalog/series/anime.json > /dev/null
-
-          echo "Archivos JSON correctos"
+          python -m json.tool \
+            public/catalog/series/anime.json > /dev/null
 
       - name: Preparar GitHub Pages
         run: |
@@ -69,11 +73,11 @@ jobs:
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Subir archivos de Pages
+      - name: Subir archivos
         uses: actions/upload-pages-artifact@v3
         with:
           path: public
 
-      - name: Publicar addon Nuvio Anime
+      - name: Publicar Nuvio Anime
         id: deployment
         uses: actions/deploy-pages@v4
