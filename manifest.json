@@ -1,10 +1,22 @@
 {
-  "id": "com.yahir9.nuvioanime",
+  "id": "com.yahir9.jkanime",
+  "name": "JKAnime para Nuvio",
   "version": "1.0.0",
-  "name": "Nuvio Anime",
-  "description": "Catálogo de anime con fuentes autorizadas, generado mediante GitHub Actions.",
-  "resources": ["catalog", "meta", "stream"],
-  "types": ["series"],
-  "catalogs": [{"type": "series", "id": "anime", "name": "Anime", "extra": [{"name": "skip", "isRequired": false}]}],
-  "idPrefixes": ["na:"]
+  "description": "Proveedor de anime en español (subtitulado y latino) desde jkanime.net",
+  "author": "",
+  "scrapers": [
+    {
+      "id": "jkanime",
+      "name": "JKAnime",
+      "description": "Anime en español (subtitulado, latino y castellano) desde jkanime.net",
+      "version": "1.0.0",
+      "author": "",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/jkanime.js",
+      "enabled": true
+    }
+  ]
 }
