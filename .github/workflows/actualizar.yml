@@ -1,3 +1,4 @@
+
 name: Actualizar anime y publicar
 
 on:
@@ -22,22 +23,33 @@ concurrency:
 jobs:
   generar:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Generar catálogo y fuentes
+
+      - name: Generar catalogo y fuentes
         run: python scripts/build.py
-      - name: Preparar publicación
+
+      - name: Preparar publicacion
         run: |
           mkdir -p public
           cp manifest.json public/
-          cp -R catalog meta stream public/
+          cp -R catalog public/
+          mkdir -p meta stream
+          cp -R meta stream public/
           touch public/.nojekyll
+
       - uses: actions/configure-pages@v5
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
+
       - uses: actions/deploy-pages@v4
         id: deployment
