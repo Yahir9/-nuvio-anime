@@ -1,8 +1,9 @@
 
 #!/usr/bin/env python3
-# Nuvio Anime - Extractor HTML local
-# Detecta HLS directos y codificados en Base64
-# No necesita acceso web ni servidores adicionales
+# Nuvio Anime - Extractor multiple de reproductores
+# Lee archivos HTML locales desde GitHub Actions.
+# Identifica enlaces multimedia directos y Base64.
+# No necesita Render ni consultar JKAnime.
 
 import base64
 import html
@@ -10,74 +11,28 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 HTML_DIR = DATA / "html"
 OUTPUT = DATA / "extracted_sources.json"
 
-EXTENSIONS = (".m3u8", ".mp4", ".mpd")
+EXTENSIONES = (".m3u8", ".mp4", ".mpd")
 
-# Formato de nombre:
-# anime-slug-1-40.html
-# donde 1 = temporada y 40 = episodio
-
-FILENAME_PATTERN = re.compile(
+PATRON_ARCHIVO = re.compile(
     r"^([a-z0-9][a-z0-9-]*)-(\d+)-(\d+)$"
 )
 
-URL_PATTERN = re.compile(
-    r'https?://[^\s"\'<>\\]+',
+PATRON_URL = re.compile(
+    r"""https?://[^\s"'<>\\]+""",
     re.IGNORECASE
 )
 
-ATOB_PATTERN = re.compile(
+PATRON_BASE64 = re.compile(
     r"""atob\s*\(\s*['"]([A-Za-z0-9+/=]+)['"]\s*\)""",
     re.IGNORECASE
 )
-
-
-def media_valida(url):
-    try:
-        parsed = urlparse(url)
-
-        if parsed.scheme != "https":
-            return False
-
-        if not parsed.hostname:
-            return False
-
-        if parsed.username or parsed.password:
-            return False
-
-        return parsed.path.lower().endswith(EXTENSIONS)
-
-    except ValueError:
-        return False
-
-
-def enlace_vigente(url):
-    if not media_valida(url):
-        return False
-
-    query = parse_qs(urlparse(url).query)
-    expiracion = query.get("e", [])
-
-    if expiracion:
-        try:
-            limite = int(expiracion[0])
-            ahora = int(
-                datetime.now(timezone.utc).timestamp()
-            )
-
-            # Margen de seguridad de 5 minutos
-            return limite > ahora + 300
-
-        except (ValueError, IndexError):
-            return False
-
-    return True
 
 
 def normalizar(texto):
@@ -86,31 +41,79 @@ def normalizar(texto):
     )
 
 
-def buscar_urls(texto):
-    encontrados = set()
+def url_multimedia(url):
+    try:
+        parsed = urlparse(url)
+
+        return (
+            parsed.scheme == "https"
+            and bool(parsed.hostname)
+            and not parsed.username
+            and not parsed.password
+            and parsed.path.lower().endswith(
+                EXTENSIONES
+            )
+        )
+
+    except ValueError:
+        return False
+
+
+def comprobar_vigencia(url):
+    if not url_multimedia(url):
+        return False
+
+    parametros = parse_qs(
+        urlparse(url).query
+    )
+
+    vencimiento = parametros.get("e", [])
+
+    if vencimiento:
+        try:
+            limite = int(vencimiento[0])
+
+            ahora = int(
+                datetime.now(
+                    timezone.utc
+                ).timestamp()
+            )
+
+            return limite > ahora + 300
+
+        except (ValueError, IndexError):
+            return False
+
+    return True
+
+
+def encontrar_urls(texto):
+    resultados = set()
     texto = normalizar(texto)
 
-    for coincidencia in URL_PATTERN.findall(texto):
-        url = coincidencia.rstrip(");,}]")
+    for coincidencia in PATRON_URL.findall(texto):
+        url = coincidencia.rstrip(
+            ');,}]\r\n'
+        )
 
-        if media_valida(url):
-            encontrados.add(url)
+        if url_multimedia(url):
+            resultados.add(url)
 
-    return encontrados
+    return resultados
 
 
-def extraer_base64(texto):
-    encontrados = set()
+def encontrar_base64(texto):
+    resultados = set()
 
-    for codificado in ATOB_PATTERN.findall(texto):
+    for cadena in PATRON_BASE64.findall(texto):
         try:
-            decoded = base64.b64decode(
-                codificado,
+            decodificado = base64.b64decode(
+                cadena,
                 validate=True
             ).decode("utf-8")
 
-            encontrados.update(
-                buscar_urls(decoded)
+            resultados.update(
+                encontrar_urls(decodificado)
             )
 
         except (
@@ -119,54 +122,63 @@ def extraer_base64(texto):
         ):
             continue
 
-    return encontrados
+    return resultados
 
 
-def extraer_de_html(contenido):
-    encontrados = set()
+def analizar_html(contenido):
+    resultados = encontrar_urls(contenido)
 
-    # Detectar URLs visibles en HTML y JavaScript
-    encontrados.update(
-        buscar_urls(contenido)
+    resultados.update(
+        encontrar_base64(contenido)
     )
 
-    # Detectar atob('URL_EN_BASE64')
-    encontrados.update(
-        extraer_base64(contenido)
+    return sorted(resultados)
+
+
+def obtener_datos_archivo(archivo):
+    nombre = archivo.stem.lower()
+    coincidencia = PATRON_ARCHIVO.fullmatch(
+        nombre
     )
 
-    return sorted(encontrados)
-
-
-def procesar_archivo(ruta):
-    nombre = ruta.stem.lower()
-    match = FILENAME_PATTERN.fullmatch(nombre)
-
-    if not match:
+    if not coincidencia:
         print(
-            "Nombre de archivo invalido:",
-            ruta.name
+            "Nombre de archivo no valido:",
+            archivo.name
         )
+        return None
+
+    slug = coincidencia.group(1)
+    temporada = int(coincidencia.group(2))
+    episodio = int(coincidencia.group(3))
+
+    if not 1 <= temporada <= 100:
+        return None
+
+    if not 1 <= episodio <= 10000:
+        return None
+
+    return slug, temporada, episodio
+
+
+def procesar_html(archivo):
+    datos = obtener_datos_archivo(archivo)
+
+    if datos is None:
         return []
 
-    slug = match.group(1)
-    temporada = int(match.group(2))
-    episodio = int(match.group(3))
+    slug, temporada, episodio = datos
 
-    if temporada < 1 or episodio < 1:
-        print("Temporada o episodio invalido")
-        return []
-
-    contenido = ruta.read_text(
+    contenido = archivo.read_text(
         encoding="utf-8",
         errors="replace"
     )
 
-    encontrados = extraer_de_html(contenido)
+    urls = analizar_html(contenido)
 
     vigentes = [
-        url for url in encontrados
-        if enlace_vigente(url)
+        url for url in urls
+        if comprobar_vigencia(url)
     ]
 
     video_id = (
@@ -174,10 +186,10 @@ def procesar_archivo(ruta):
     )
 
     print("-----------------------------")
-    print("Archivo:", ruta.name)
-    print("Episodio:", video_id)
-    print("URLs detectadas:", len(encontrados))
-    print("URLs vigentes:", len(vigentes))
+    print("Archivo:", archivo.name)
+    print("Video:", video_id)
+    print("Enlaces encontrados:", len(urls))
+    print("Enlaces no vencidos:", len(vigentes))
 
     fuentes = []
 
@@ -196,11 +208,6 @@ def procesar_archivo(ruta):
 
 
 def main():
-    DATA.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
     HTML_DIR.mkdir(
         parents=True,
         exist_ok=True
@@ -212,27 +219,41 @@ def main():
     )
 
     print("============================")
-    print("NUVIO ANIME - EXTRACTOR HTML")
-    print("Archivos encontrados:", len(archivos))
+    print("NUVIO - EXTRACCION MULTIPLE")
     print("============================")
+    print("Archivos HTML:", len(archivos))
 
     fuentes = []
-    duplicados = set()
+    vistos = set()
+    episodios_con_fuente = set()
 
-    for ruta in archivos:
-        for fuente in procesar_archivo(ruta):
-            key = (
+    for archivo in archivos:
+        extraidas = procesar_html(archivo)
+
+        for fuente in extraidas:
+            clave = (
                 fuente["id"],
                 fuente["season"],
                 fuente["episode"],
                 fuente["url"]
             )
 
-            if key in duplicados:
+            if clave in vistos:
                 continue
 
-            duplicados.add(key)
+            vistos.add(clave)
             fuentes.append(fuente)
+
+            episodios_con_fuente.add((
+                fuente["id"],
+                fuente["season"],
+                fuente["episode"]
+            ))
+
+    DATA.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
     OUTPUT.write_text(
         json.dumps(
@@ -244,9 +265,17 @@ def main():
     )
 
     print("============================")
-    print("Fuentes nuevas:", len(fuentes))
-    print("Archivo generado:")
-    print("data/extracted_sources.json")
+    print("RESUMEN FINAL")
+    print("HTML analizados:", len(archivos))
+    print(
+        "Episodios con fuente:",
+        len(episodios_con_fuente)
+    )
+    print("Fuentes HLS:", len(fuentes))
+    print(
+        "Resultado:",
+        "data/extracted_sources.json"
+    )
     print("============================")
 
 
