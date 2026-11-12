@@ -1,76 +1,81 @@
 
 #!/usr/bin/env python3
-# Nuvio Anime - Detector de episodios desde HTML local
-# No realiza solicitudes de red
+# Nuvio Anime - Detector de episodios V2
+# HTML local + JSON de episodios guardados
+# No consulta servicios externos
 
 import html
 import json
 import re
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse, urljoin
 
 from bs4 import BeautifulSoup
 
 ROOT = Path(__file__).resolve().parents[1]
-INPUT = ROOT / "data" / "episodes-html"
-OUTPUT = ROOT / "data" / "episodes.json"
+DATA = ROOT / "data"
+HTML_DIR = DATA / "episodes-html"
+JSON_DIR = DATA / "episodes-api"
+OUTPUT = DATA / "episodes.json"
 
 BASE = "https://jkanime.net/"
-SLUG = re.compile(r"[a-z0-9][a-z0-9-]*")
-MAX_EPISODE = 10000
+SLUG = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
-def numero_de_enlace(enlace, slug):
-    if not isinstance(enlace, str):
-        return None
+def numero_episodio(url, slug):
+    try:
+        url = html.unescape(
+            url.replace("\\/", "/")
+        )
 
-    enlace = html.unescape(
-        enlace.replace("\\/", "/")
-    )
+        p = urlparse(urljoin(BASE, url))
 
-    url = urlparse(urljoin(BASE, enlace))
+        if p.hostname not in (
+            "jkanime.net",
+            "www.jkanime.net"
+        ):
+            return None
 
-    if url.scheme not in ("http", "https"):
-        return None
+        patron = (
+            rf"/{re.escape(slug)}/(\d+)/?"
+        )
 
-    if (url.hostname or "").lower() not in (
-        "jkanime.net",
-        "www.jkanime.net"
-    ):
-        return None
+        match = re.fullmatch(
+            patron,
+            p.path
+        )
 
-    patron = rf"/{re.escape(slug)}/(\d+)/?"
-    match = re.fullmatch(patron, url.path)
+        if match:
+            numero = int(match.group(1))
 
-    if not match:
-        return None
+            if 0 <= numero <= 10000:
+                return numero
 
-    numero = int(match.group(1))
-
-    if 1 <= numero <= MAX_EPISODE:
-        return numero
+    except (ValueError, TypeError):
+        pass
 
     return None
 
 
-def detectar_episodios(texto, slug):
-    resultados = set()
+def desde_html(contenido, slug):
+    encontrados = set()
 
-    soup = BeautifulSoup(texto, "html.parser")
+    soup = BeautifulSoup(
+        contenido,
+        "html.parser"
+    )
 
-    # Enlaces normales dentro de la pagina
-    for etiqueta in soup.select("a[href]"):
-        numero = numero_de_enlace(
-            etiqueta.get("href", ""),
+    for a in soup.select("a[href]"):
+        numero = numero_episodio(
+            a.get("href", ""),
             slug
         )
 
         if numero is not None:
-            resultados.add(numero)
+            encontrados.add(numero)
 
-    # Enlaces insertados en scripts JavaScript
     texto = html.unescape(
-        texto.replace("\\/", "/")
+        contenido.replace("\\/", "/")
     )
 
     patron = (
@@ -80,77 +85,147 @@ def detectar_episodios(texto, slug):
     )
 
     for match in re.finditer(
-        patron, texto, flags=re.IGNORECASE
+        patron,
+        texto,
+        re.IGNORECASE
     ):
         numero = int(match.group(1))
 
-        if 1 <= numero <= MAX_EPISODE:
-            resultados.add(numero)
+        if 0 <= numero <= 10000:
+            encontrados.add(numero)
 
-    return sorted(resultados)
+    return encontrados
+
+
+def desde_api(contenido):
+    encontrados = set()
+
+    try:
+        datos = json.loads(contenido)
+    except ValueError:
+        return encontrados
+
+    if isinstance(datos, list):
+        lista = datos
+    elif isinstance(datos, dict):
+        lista = datos.get("data", [])
+    else:
+        return encontrados
+
+    if not isinstance(lista, list):
+        return encontrados
+
+    for episodio in lista:
+        if not isinstance(episodio, dict):
+            continue
+
+        try:
+            numero = int(
+                episodio.get("number")
+            )
+
+            if 0 <= numero <= 10000:
+                encontrados.add(numero)
+
+        except (ValueError, TypeError):
+            continue
+
+    return encontrados
 
 
 def main():
-    INPUT.mkdir(parents=True, exist_ok=True)
-    OUTPUT.parent.mkdir(
+    HTML_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+    JSON_DIR.mkdir(
         parents=True,
         exist_ok=True
     )
 
-    archivos = sorted(
-        list(INPUT.glob("*.html"))
-        + list(INPUT.glob("*.txt"))
-    )
+    encontrados = {}
 
-    episodios = {}
-    print("=== DETECTOR DE EPISODIOS ===")
-    print("Archivos HTML:", len(archivos))
-
-    for archivo in archivos:
-        slug = archivo.stem.lower()
+    for ruta in sorted([
+        *HTML_DIR.glob("*.html"),
+        *HTML_DIR.glob("*.txt")
+    ]):
+        slug = ruta.stem.lower()
 
         if not SLUG.fullmatch(slug):
-            print("Archivo omitido:", archivo.name)
             continue
 
-        texto = archivo.read_text(
+        contenido = ruta.read_text(
             encoding="utf-8",
             errors="replace"
         )
 
-        numeros = detectar_episodios(texto, slug)
-        identificador = "na:" + slug
+        numeros = desde_html(
+            contenido,
+            slug
+        )
 
-        episodios.setdefault(identificador, set())
-        episodios[identificador].update(numeros)
+        encontrados.setdefault(
+            slug, set()
+        ).update(numeros)
 
         print(
+            "HTML:",
             slug,
-            "- episodios encontrados:",
+            "episodios:",
             len(numeros)
         )
 
-    lista = []
+    for ruta in sorted(
+        JSON_DIR.glob("*.json")
+    ):
+        slug = ruta.stem.lower()
 
-    for identificador in sorted(episodios):
-        for numero in sorted(episodios[identificador]):
-            lista.append({
-                "id": identificador,
+        if not SLUG.fullmatch(slug):
+            continue
+
+        contenido = ruta.read_text(
+            encoding="utf-8"
+        )
+
+        numeros = desde_api(contenido)
+
+        encontrados.setdefault(
+            slug, set()
+        ).update(numeros)
+
+        print(
+            "API JSON:",
+            slug,
+            "episodios:",
+            len(numeros)
+        )
+
+    resultado = []
+
+    for slug, numeros in sorted(
+        encontrados.items()
+    ):
+        for numero in sorted(numeros):
+            resultado.append({
+                "id": "na:" + slug,
                 "season": 1,
                 "episode": numero
             })
 
     OUTPUT.write_text(
         json.dumps(
-            {"episodes": lista},
+            {"episodes": resultado},
             ensure_ascii=False,
             indent=2
         ) + "\n",
         encoding="utf-8"
     )
 
-    print("Total episodios detectados:", len(lista))
-    print("Archivo generado: data/episodes.json")
+    print("============================")
+    print("DETECCION FINALIZADA")
+    print("Series:", len(encontrados))
+    print("Episodios:", len(resultado))
+    print("============================")
 
 
 if __name__ == "__main__":
