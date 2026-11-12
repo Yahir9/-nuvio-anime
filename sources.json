@@ -1,3 +1,14 @@
+
 {
-  "sources": []
+  "sources": [
+    {
+      "type": "direct",
+      "id": "anime-prueba",
+      "name": "Anime de prueba",
+      "season": 1,
+      "episode": 1,
+      "url_env": "HLS_SOURCE_URL",
+      "enabled": true
+    }
+  ]
 }
