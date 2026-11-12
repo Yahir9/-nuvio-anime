@@ -1,70 +1,47 @@
-
-name: Actualizar anime y publicar
-
+name: Actualizar catalogo Anime
 on:
   workflow_dispatch:
-
   schedule:
-    - cron: "17 */12 * * *"
-
+    - cron: '17 */12 * * *'
   push:
     paths:
-      - "sources.json"
-      - "scripts/build.py"
-      - "manifest.json"
-      - ".github/workflows/actualizar.yml"
-
+      - 'sources.json'
+      - 'scripts/build.py'
+      - '.github/workflows/actualizar.yml'
+      - 'manifest.json'
 permissions:
   contents: read
   pages: write
   id-token: write
-
 concurrency:
   group: nuvio-anime-pages
   cancel-in-progress: false
-
 jobs:
   generar:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - name: Descargar repositorio
-        uses: actions/checkout@v4
-
-      - name: Instalar Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-
-      - name: Generar catalogo y fuentes
+          python-version: '3.12'
+      - name: Instalar dependencias
+        run: pip install requests beautifulsoup4
+      - name: Generar API estatica
         env:
           HLS_SOURCE_URL: ${{ secrets.HLS_SOURCE_URL }}
-          ANIME_FEED_URL: ${{ secrets.ANIME_FEED_URL }}
+          MAX_ANIMES: '40'
+        run: python scripts/build.py
+      - name: Preparar Pages
         run: |
-          python scripts/build.py
-
-      - name: Preparar archivos
-        run: |
-          mkdir -p public
-          cp manifest.json public/
-          cp -R catalog public/
-          mkdir -p meta stream
-          cp -R meta stream public/
+          cp manifest.json public/manifest.json
           touch public/.nojekyll
-
-      - name: Configurar GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Subir archivos
-        uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: public
-
-      - name: Publicar addon
+      - uses: actions/deploy-pages@v4
         id: deployment
-        uses: actions/deploy-pages@v4
