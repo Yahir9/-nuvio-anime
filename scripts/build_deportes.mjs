@@ -181,15 +181,6 @@ async function main() {
     for (let i = metas.length - 1; i >= 0; i--) if (!/^tt/.test(metas[i].id)) metas.splice(i, 1); // sin casilla: no se lista
   }
   w('mapa.json', mapa);
-  // Evento fijo de prueba con un video público (comprueba la reproducción)
-  {
-    const okP = hacerPortada(path.join(SALIDA, 'img', 'dep_8.png'), 'PRUEBA', 'Comprobar reproducción', '00:00', 'SIEMPRE DISPONIBLE');
-    const m0 = { id: 'dep_8', type: 'movie', name: 'Prueba de reproducción', poster: okP ? `${BASE_PAGES}/deportes/img/dep_8.png` : undefined, posterShape: 'poster',
-      description: 'Video de prueba para comprobar que la reproducción funciona.', releaseInfo: '' };
-    metas.unshift({ ...m0, _t: 0 });
-    w('meta/movie/dep_8.json', { meta: m0 });
-    w('stream/movie/dep_8.json', { streams: [{ name: 'Prueba 1080p', title: 'Video de prueba 1080p (HLS)', quality: '1080p', url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' }] });
-  }
   w('catalog/movie/dep-hoy.json', { metas: metas.map((m) => ({ ...m, _t: undefined })) });
   w('manifest.json', { id: 'com.yahir9.deportes', version: '1.1.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día; los enlaces en vivo los pone el plugin Deportes',
     resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt0000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
