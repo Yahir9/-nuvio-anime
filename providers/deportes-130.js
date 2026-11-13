@@ -51,7 +51,7 @@ var __values = (this && this.__values) || function(o) {
  * Nuvio llama getStreams(id, tipo) con el id del partido ("dep_12345", del addon "Deportes en vivo").
  * Se busca el partido en la agenda, y cada canal se resuelve EN TU EQUIPO (el token del video queda atado a tu IP).
  */
-var VERSION = '1.2.1';
+var VERSION = '1.3.0';
 var API = (typeof process !== 'undefined' && process.env && process.env.DEPORTES_API) || 'https://api.wqxag.com/diaries.json';
 var SITIO = 'https://futbollibretvplay.org';
 var PAGES = (typeof process !== 'undefined' && process.env && process.env.DEPORTES_PAGES) || 'https://yahir9.github.io/-nuvio-anime';
@@ -205,12 +205,12 @@ function desdeMapa(id) {
 }
 function getStreams(id, tipo) {
     return __awaiter(this, void 0, void 0, function () {
-        var n_1, a, datos, ev, at, titulo, opciones, grupos, salida, vistos, grupos_1, grupos_1_1, g, e_2;
+        var n_1, clave, m3u8, a, datos, ev, at, titulo, opciones, grupos, salida, vistos, grupos_1, grupos_1_1, g, e_2;
         var e_3, _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
-                    _b.trys.push([0, 5, , 6]);
+                    _b.trys.push([0, 7, , 8]);
                     n_1 = (String(id || '').match(/^dep_(\d+)$/) || [])[1];
                     if (!!n_1) return [3 /*break*/, 2];
                     return [4 /*yield*/, desdeMapa(String(id || '').trim())];
@@ -219,8 +219,17 @@ function getStreams(id, tipo) {
                     if (!n_1)
                         return [2 /*return*/, []];
                     _b.label = 2;
-                case 2: return [4 /*yield*/, pedir(API, { Accept: 'application/json', Referer: "".concat(SITIO, "/"), Origin: SITIO })];
+                case 2:
+                    if (!/^canal:/.test(n_1)) return [3 /*break*/, 4];
+                    clave = n_1.slice(6);
+                    return [4 /*yield*/, resolver("https://tvf90.com/online/canal.php?stream=".concat(encodeURIComponent(clave)))];
                 case 3:
+                    m3u8 = _b.sent();
+                    if (!m3u8)
+                        return [2 /*return*/, []];
+                    return [2 /*return*/, [{ name: "Canal ".concat(clave.toUpperCase(), " \u00B7 En vivo"), title: "Canal ".concat(clave), url: m3u8, quality: '1080p', provider: 'Deportes', headers: { Referer: 'https://tvf90.com/', Origin: 'https://tvf90.com', 'User-Agent': UA } }]];
+                case 4: return [4 /*yield*/, pedir(API, { Accept: 'application/json', Referer: "".concat(SITIO, "/"), Origin: SITIO })];
+                case 5:
                     a = _b.sent();
                     datos = null;
                     try {
@@ -244,7 +253,7 @@ function getStreams(id, tipo) {
                         return [2 /*return*/, []];
                     }
                     return [4 /*yield*/, Promise.all(opciones.map(function (o) { return conLimite(resolver(o.url).then(function (m3u8) { return (m3u8 ? { o: o, m3u8: m3u8 } : null); }), Math.max(1000, restante() - 2000), null); }))];
-                case 4:
+                case 6:
                     grupos = _b.sent();
                     salida = [];
                     vistos = new Set();
@@ -265,11 +274,11 @@ function getStreams(id, tipo) {
                         finally { if (e_3) throw e_3.error; }
                     }
                     return [2 /*return*/, salida];
-                case 5:
+                case 7:
                     e_2 = _b.sent();
                     motivo = "Error: ".concat(e_2 && e_2.message);
                     return [2 /*return*/, []];
-                case 6: return [2 /*return*/];
+                case 8: return [2 /*return*/];
             }
         });
     });

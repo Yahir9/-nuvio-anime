@@ -3,7 +3,7 @@
  * Nuvio llama getStreams(id, tipo) con el id del partido ("dep_12345", del addon "Deportes en vivo").
  * Se busca el partido en la agenda, y cada canal se resuelve EN TU EQUIPO (el token del video queda atado a tu IP).
  */
-const VERSION = '1.0.0';
+const VERSION = '1.3.0';
 const API = (typeof process !== 'undefined' && process.env && process.env.DEPORTES_API) || 'https://api.wqxag.com/diaries.json';
 const SITIO = 'https://futbollibretvplay.org';
 const PAGES = (typeof process !== 'undefined' && process.env && process.env.DEPORTES_PAGES) || 'https://yahir9.github.io/-nuvio-anime';
@@ -85,6 +85,12 @@ async function getStreams(id, tipo) {
   try {
     let n = (String(id || '').match(/^dep_(\d+)$/) || [])[1];
     if (!n) { n = await desdeMapa(String(id || '').trim()); if (!n) return []; }
+    if (/^canal:/.test(n)) {
+      const clave = n.slice(6);
+      const m3u8 = await resolver(`https://tvf90.com/online/canal.php?stream=${encodeURIComponent(clave)}`);
+      if (!m3u8) return [];
+      return [{ name: `Canal ${clave.toUpperCase()} · En vivo`, title: `Canal ${clave}`, url: m3u8, quality: '1080p', provider: 'Deportes', headers: { Referer: 'https://tvf90.com/', Origin: 'https://tvf90.com', 'User-Agent': UA } }];
+    }
     const a = await pedir(API, { Accept: 'application/json', Referer: `${SITIO}/`, Origin: SITIO });
     let datos = null;
     try { datos = JSON.parse(a.texto); } catch (e) { /* nada */ }

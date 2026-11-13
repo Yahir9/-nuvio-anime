@@ -108,6 +108,13 @@ function hacerPortada(archivo, liga, equipos, hora, pais) {
 }
 const BASE_PAGES = process.env.PAGES_BASE || (process.env.GITHUB_REPOSITORY ? `https://${process.env.GITHUB_REPOSITORY.split('/')[0].toLowerCase()}.github.io/${process.env.GITHUB_REPOSITORY.split('/')[1]}` : 'https://yahir9.github.io/-nuvio-anime');
 
+const CANALES = [
+  { nombre: 'ESPN 1', stream: 'espn' },
+  { nombre: 'ESPN 2', stream: 'espn2' },
+  { nombre: 'ESPN 3', stream: 'espn3' }
+];
+const canalesMetas = [];
+
 async function main() {
   fs.rmSync(SALIDA, { recursive: true, force: true });
   for (const d of ['catalog/movie', 'meta/movie', 'stream/movie', 'img']) fs.mkdirSync(path.join(SALIDA, d), { recursive: true });
@@ -152,7 +159,7 @@ async function main() {
   {
     const casillas = [];
     const KEY = process.env.TMDB_KEY || (fs.readFileSync(path.join(RAIZ, 'providers/jkanime.js'), 'utf8').match(/\|\|\s*'([0-9a-f]{32})'/) || [])[1];
-    for (let n = 1; n <= 60 && casillas.length < 30; n++) {
+    for (let n = 1; n <= 60 && casillas.length < 30 + CANALES.length; n++) {
       const imdb = 'tt' + String(n).padStart(7, '0');
       let tmdb = '';
       if (KEY) {
@@ -168,6 +175,18 @@ async function main() {
     }
     diag.casillas = casillas.length;
     diag.casillasTMDB = casillas.filter((c) => c.tmdb).length;
+    const deCanales = casillas.splice(Math.max(0, casillas.length - CANALES.length), CANALES.length);
+    CANALES.forEach((ch, i) => {
+      const c = deCanales[i];
+      if (!c) return;
+      const imagen = hacerPortada(path.join(SALIDA, 'img', `${c.imdb}.png`), 'Canal 24/7', ch.nombre, '', '') ? `${BASE_PAGES}/deportes/img/${c.imdb}.png` : undefined;
+      mapa[c.imdb] = `canal:${ch.stream}`; if (c.tmdb) mapa[c.tmdb] = `canal:${ch.stream}`;
+      const mc = { id: c.imdb, type: 'movie', name: `📺 ${ch.nombre}`, poster: imagen, posterShape: 'poster', background: imagen, description: `${ch.nombre} en vivo las 24 horas` };
+      w(`meta/movie/${c.imdb}.json`, { meta: mc });
+      w(`stream/movie/${c.imdb}.json`, { streams: [] });
+      canalesMetas.push(mc);
+    });
+    diag.canales = canalesMetas.length;
     metas.forEach((m, i) => {
       const c = casillas[i];
       if (!c) { diag.sinCasilla = (diag.sinCasilla || 0) + 1; return; }
@@ -181,16 +200,17 @@ async function main() {
     for (let i = metas.length - 1; i >= 0; i--) if (!/^tt/.test(metas[i].id)) metas.splice(i, 1); // sin casilla: no se lista
   }
   w('mapa.json', mapa);
+  w('catalog/movie/dep-canales.json', { metas: canalesMetas });
   w('catalog/movie/dep-hoy.json', { metas: metas.map((m) => ({ ...m, _t: undefined })) });
-  w('manifest.json', { id: 'com.yahir9.deportes', version: '1.1.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día; los enlaces en vivo los pone el plugin Deportes',
-    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt0000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
+  w('manifest.json', { id: 'com.yahir9.deportes', version: '1.2.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día; los enlaces en vivo los pone el plugin Deportes',
+    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt0000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }, { type: 'movie', id: 'dep-canales', name: 'Canales en vivo 24/7' }], behaviorHints: { configurable: false } });
   // Copia del addon con dirección y id nuevos (para aparatos que guardaron la copia vieja): /tv-deportes/
   try {
     const SALIDA2 = path.join(path.dirname(SALIDA), 'tv-deportes');
     fs.rmSync(SALIDA2, { recursive: true, force: true });
     fs.cpSync(SALIDA, SALIDA2, { recursive: true, filter: (src) => !src.endsWith('diagnostico.json') });
     const mf = JSON.parse(fs.readFileSync(path.join(SALIDA2, 'manifest.json'), 'utf8'));
-    mf.id = 'com.yahir9.deportes.tv'; mf.name = 'Deportes TV'; mf.version = '2.0.0';
+    mf.id = 'com.yahir9.deportes.tv'; mf.name = 'Deportes TV'; mf.version = '2.1.0';
     fs.writeFileSync(path.join(SALIDA2, 'manifest.json'), JSON.stringify(mf));
     diag.copiaTV = 'ok';
   } catch (e) { diag.copiaTV = `error: ${e.message}`; }
