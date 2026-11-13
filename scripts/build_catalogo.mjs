@@ -86,7 +86,9 @@ async function main() {
     }
     return metas;
   }
-  const extra = [
+  // false = solo la lista de JKAnime (data/jkanime-datos.json); true = agrega filas automáticas de TMDB, que pueden incluir títulos que JKAnime no tiene
+  const CATALOGOS_TMDB = false;
+  const extra = !CATALOGOS_TMDB ? [] : [
     ['series', 'tmdb-emision', 'Anime - Emitiéndose ahora', await listaTmdb('tv', { 'air_date.gte': dia(-10), 'air_date.lte': dia(7), sort_by: 'popularity.desc' }, 3)],
     ['series', 'tmdb-populares', 'Anime - Populares', await listaTmdb('tv', { sort_by: 'popularity.desc', 'vote_count.gte': '150' }, 3)],
     ['movie', 'tmdb-peliculas', 'Anime - Películas populares', await listaTmdb('movie', { sort_by: 'popularity.desc', 'vote_count.gte': '100' }, 2)]
