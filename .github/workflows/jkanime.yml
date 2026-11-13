@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/build_jkanime.mjs'
+      - 'scripts/cf_cookies.mjs'
       - 'providers/jkanime.js'
       - '.github/workflows/jkanime.yml'
 
@@ -32,6 +33,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Pasar verificación de Cloudflare
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y xvfb >/dev/null
+          npm install --no-save playwright >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+          xvfb-run -a node scripts/cf_cookies.mjs
       - name: Generar catálogo
         run: node scripts/build_jkanime.mjs
       - name: Resumen

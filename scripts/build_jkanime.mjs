@@ -17,7 +17,19 @@ const MAX_SERIES = Number(process.env.MAX_SERIES || 60);
 const EPISODIOS_RESUELTOS = Number(process.env.EPISODIOS_RESUELTOS || 2); // últimos N episodios con enlace directo
 const PAUSA = Number(process.env.PAUSA ?? 700); // ms entre peticiones a jkanime.net
 
-const diag = { inicio: new Date().toISOString(), peticiones: [], errores: [], series: 0, peliculas: 0, episodios: 0, streamsDirectos: 0 };
+// Cookies de Cloudflare (las genera scripts/cf_cookies.mjs); se agregan a toda petición a jkanime.net, también las del plugin
+const COOKIES_CF = (() => { try { return fs.readFileSync(path.join(RAIZ, 'cookies.txt'), 'utf8').trim(); } catch (e) { return ''; } })();
+const fetchOriginal = globalThis.fetch;
+globalThis.fetch = (url, o = {}) => {
+  if (COOKIES_CF && /^https?:\/\/(?:www\.)?jkanime\.net\//.test(String(url))) {
+    const h = Object.assign({}, o.headers || {});
+    h.Cookie = [h.Cookie, COOKIES_CF].filter(Boolean).join('; ');
+    return fetchOriginal(url, Object.assign({}, o, { headers: h }));
+  }
+  return fetchOriginal(url, o);
+};
+
+const diag = { inicio: new Date().toISOString(), cookiesCloudflare: !!COOKIES_CF, peticiones: [], errores: [], series: 0, peliculas: 0, episodios: 0, streamsDirectos: 0 };
 const nota = (m) => { console.log(m); };
 const error = (m) => { console.log('ERROR:', m); if (diag.errores.length < 40) diag.errores.push(String(m)); };
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
