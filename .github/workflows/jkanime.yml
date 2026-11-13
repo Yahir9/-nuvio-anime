@@ -3,11 +3,12 @@ name: JKAnime addon
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 9 * * *'
+    - cron: '7 * * * *'
   push:
     branches: [main]
     paths:
       - 'scripts/build_catalogo.mjs'
+      - 'scripts/build_deportes.mjs'
       - 'data/jkanime-datos.json'
       - 'data/correcciones.json'
       - 'providers/jkanime.js'
@@ -36,12 +37,19 @@ jobs:
           node-version: 22
       - name: Generar catálogo
         run: node scripts/build_catalogo.mjs
+      - name: Generar agenda deportiva
+        continue-on-error: true
+        run: node scripts/build_deportes.mjs
       - name: Resumen
         if: always()
         run: |
           echo '### diagnostico.json' >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           cat site/diagnostico.json >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo '### deportes/diagnostico.json' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat site/deportes/diagnostico.json >> "$GITHUB_STEP_SUMMARY" || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
