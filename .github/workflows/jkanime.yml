@@ -9,6 +9,7 @@ on:
     paths:
       - 'scripts/build_catalogo.mjs'
       - 'data/jkanime-datos.json'
+      - 'data/correcciones.json'
       - 'providers/jkanime.js'
       - '.github/workflows/jkanime.yml'
 

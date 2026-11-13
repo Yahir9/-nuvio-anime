@@ -1,0 +1,15 @@
+{
+  "_ayuda": "alias: slug de JKAnime -> texto a buscar en TMDB (varios separados por | se prueban en orden). excluir: slugs que no deben salir en el catálogo.",
+  "alias": {
+    "cardfight-vanguard-divinez-unmei-seisen-hen": "Cardfight!! Vanguard: Divinez|Cardfight!! Vanguard",
+    "tokyo-revengers-santen-sensou-hen": "Tokyo Revengers|Tokyo Revengers: Tenjiku Arc",
+    "keroro-gunsou-2026": "Keroro Gunsou|Sgt. Frog|Keroro",
+    "yami-shibai-17": "Yami Shibai|Yami Shibai: Japanese Ghost Stories",
+    "steel-ball-run-jojo-no-kimyou-na-bouken": "JoJo's Bizarre Adventure: Steel Ball Run|Steel Ball Run",
+    "tian-guan-cifu-short-films": "Heaven Official's Blessing|Tian Guan Ci Fu",
+    "pokemon-shinsaku-anime": "Pokémon Horizons: The Series|Pokémon Horizons"
+  },
+  "excluir": [
+    "tempal-item-no-chikara"
+  ]
+}

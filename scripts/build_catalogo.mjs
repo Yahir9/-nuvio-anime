@@ -10,6 +10,7 @@ const SALIDA = path.join(RAIZ, 'site');
 const leer = (f) => fs.readFileSync(path.join(RAIZ, f), 'utf8');
 const KEY = process.env.TMDB_KEY || (leer('providers/jkanime.js').match(/\|\|\s*'([0-9a-f]{32})'/) || [])[1];
 const datos = JSON.parse(leer('data/jkanime-datos.json'));
+const CORR = (() => { try { return JSON.parse(leer('data/correcciones.json')); } catch (e) { return {}; } })();
 const diag = { inicio: new Date().toISOString(), jkanime: 0, series: 0, peliculas: 0, sinCoincidencia: [], repetidos: 0, errores: [], relaciones: [] };
 
 const norm = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -33,7 +34,8 @@ async function tmdb(ruta, params = {}) {
 
 async function buscar(a, esPelicula) {
   const tipo = esPelicula ? 'movie' : 'tv';
-  const consultas = [...new Set([a.title, sinTemporada(a.title)].filter(Boolean))];
+  const alias = ((CORR.alias || {})[a.slug] || '').split('|').map((x) => x.trim()).filter(Boolean);
+  const consultas = [...new Set([...alias, a.title, sinTemporada(a.title)].filter(Boolean))];
   for (const c of consultas) {
     const r = await tmdb(`search/${tipo}`, { query: c });
     const lista = (r && r.results) || [];
@@ -53,6 +55,7 @@ async function main() {
   const series = [], pelis = [], vistos = new Set();
   for (const a of datos.directorio) {
     diag.jkanime++;
+    if ((CORR.excluir || []).includes(a.slug)) { diag.excluidos = (diag.excluidos || 0) + 1; continue; }
     const esPelicula = /pel[ií]cula|movie/i.test(`${a.tipo || ''} ${a.type || ''}`);
     const h = await buscar(a, esPelicula);
     if (!h) { diag.sinCoincidencia.push(a.title); continue; }
@@ -65,6 +68,7 @@ async function main() {
     const meta = { id: imdb, type: esPelicula ? 'movie' : 'series', name: h.nombre, poster: a.image, posterShape: 'poster', description: String(a.synopsis || '').replace(/\s+/g, ' ').trim() };
     (esPelicula ? pelis : series).push(meta);
     diag.relaciones.push(`${a.title} -> ${h.nombre} (${imdb})`);
+    if ((CORR.alias || {})[a.slug]) (diag.corregidos = diag.corregidos || []).push(`${a.title} -> ${h.nombre}`);
     await dormir(120);
   }
   diag.series = series.length; diag.peliculas = pelis.length;
