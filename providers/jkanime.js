@@ -563,4 +563,8 @@ function limitar(fn) {
   };
 }
 
-module.exports = { getStreams: limitar(getStreams) };
+module.exports = {
+  getStreams: limitar(getStreams),
+  // Usado por scripts/build_jkanime.mjs (el generador del catálogo); Nuvio solo usa getStreams
+  interno: { buscarJk, servidoresDe, armar, reiniciar: () => { inicio = Date.now(); } }
+};

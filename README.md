@@ -16,3 +16,8 @@ https://raw.githubusercontent.com/Yahir9/-nuvio-anime/main/manifest.json
 
 - `manifest.json`: registro del proveedor
 - `providers/jkanime.js`: el plugin (sin dependencias externas)
+
+## Addon de catálogo (solo GitHub)
+
+El flujo `JKAnime addon` (GitHub Actions) genera un catálogo con episodios y fuentes y lo publica en GitHub Pages.
+Enlace para Nuvio → Addons: `https://yahir9.github.io/-nuvio-anime/manifest.json`
