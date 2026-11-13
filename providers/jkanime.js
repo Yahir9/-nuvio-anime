@@ -567,7 +567,9 @@ function limitar(fn) {
     return conLimite(fn(...argumentos), PRESUPUESTO + 5000, null).then((salida) => {
       if (salida && salida.length) return salida;
       if (!DIAGNOSTICO) return [];
-      return [{ name: 'JKAnime (diagnóstico)', title: motivo || 'Sin respuesta a tiempo (tardó más de 40 s o la red falló)', url: 'https://jkanime.net/', quality: 'Calidad: Auto', provider: FUENTE }];
+      const por = motivo || 'Sin respuesta a tiempo (tardó más de 40 s o la red falló)';
+      // Nuvio no siempre muestra todos los campos: el motivo va repartido en nombre, título, calidad e idioma
+      return [{ name: `JKAnime: ${por.slice(0, 60)}`, title: por, url: 'https://jkanime.net/', quality: por.slice(0, 90), language: por.slice(60, 160) || 'Diagnóstico', provider: FUENTE }];
     });
   };
 }
