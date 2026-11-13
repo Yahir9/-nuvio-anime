@@ -1,23 +1,40 @@
 // Agenda deportiva (Fútbol Libre) como addon estático: catálogo con los eventos de hoy y, para cada uno,
 // los enlaces de video (HLS) ya resueltos. Se publica en site/deportes/ y se actualiza cada hora.
 import fs from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SALIDA = path.join(RAIZ, 'site', 'deportes');
-const API = 'https://api.wqxag.com/diaries.json';
+const API = process.env.AGENDA_URL || 'https://api.wqxag.com/diaries.json';
 const SITIO = 'https://futbollibretvplay.org';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36';
 const diag = { inicio: new Date().toISOString(), eventos: 0, opciones: 0, resueltas: 0, errores: [], pruebas: [] };
 const nota = (t) => { if (diag.pruebas.length < 30) diag.pruebas.push(t); };
 
-async function pedir(url, headers = {}) {
-  try {
-    const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'es-MX,es-419;q=0.9,es;q=0.8', ...headers }, signal: AbortSignal.timeout(20000) });
-    const sc = typeof r.headers.getSetCookie === 'function' ? r.headers.getSetCookie() : [];
-    return { status: r.status, texto: await r.text(), cookies: sc.map((c) => c.split(';')[0]).join('; '), servidor: `${r.headers.get('server') || ''} ${r.headers.get('cf-ray') ? 'cf' : ''}`.trim() };
-  } catch (e) { return { status: 0, texto: '', cookies: '', error: (e.cause && e.cause.code) || e.message }; }
+// Conexión de bajo nivel: el fetch de Node cambia Sec-Fetch-Mode a "cors" a la fuerza y tvf90.com lo revisa
+function pedir(url, headers = {}) {
+  return new Promise((resolve) => {
+    let u;
+    try { u = new URL(url); } catch (e) { return resolve({ status: 0, texto: '', cookies: '', error: 'url' }); }
+    const modulo = u.protocol === 'http:' ? http : https;
+    const cab = { 'User-Agent': UA, 'Accept-Language': 'es-MX,es-419;q=0.9,es;q=0.8', ...headers };
+    delete cab['Accept-Encoding'];
+    const req = modulo.request(u, { method: 'GET', headers: cab, timeout: 20000 }, (r) => {
+      const partes = [];
+      r.on('data', (c) => partes.push(c));
+      r.on('end', () => resolve({
+        status: r.statusCode, texto: Buffer.concat(partes).toString('utf8'),
+        cookies: (r.headers['set-cookie'] || []).map((c) => c.split(';')[0]).join('; '),
+        servidor: `${r.headers.server || ''} ${r.headers['cf-ray'] ? 'cf' : ''}`.trim()
+      }));
+    });
+    req.on('timeout', () => { req.destroy(new Error('timeout')); });
+    req.on('error', (e) => resolve({ status: 0, texto: '', cookies: '', error: e.code || e.message }));
+    req.end();
+  });
 }
 
 // Cabeceras de un Chrome real
