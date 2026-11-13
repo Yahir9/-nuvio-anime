@@ -3,7 +3,7 @@ name: JKAnime addon
 on:
   workflow_dispatch:
   schedule:
-    - cron: '7 * * * *'
+    - cron: '3,13,23,33,43,53 * * * *'
   push:
     branches: [main]
     paths:
