@@ -114,7 +114,7 @@ function limpiarHtml(t) {
 }
 
 function normalizar(t) {
-  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, ' y ').replace(/[^a-z0-9]+/g, ' ').trim();
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/['\u2019\u2018`\u00b4]/g, '').replace(/&/g, ' y ').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
 function origen(url) {
