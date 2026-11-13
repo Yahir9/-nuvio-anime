@@ -14,10 +14,17 @@ const nota = (t) => { if (diag.pruebas.length < 30) diag.pruebas.push(t); };
 
 async function pedir(url, headers = {}) {
   try {
-    const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'es-MX,es;q=0.9', ...headers }, signal: AbortSignal.timeout(20000) });
-    return { status: r.status, texto: await r.text() };
-  } catch (e) { return { status: 0, texto: '', error: (e.cause && e.cause.code) || e.message }; }
+    const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'es-MX,es-419;q=0.9,es;q=0.8', ...headers }, signal: AbortSignal.timeout(20000) });
+    const sc = typeof r.headers.getSetCookie === 'function' ? r.headers.getSetCookie() : [];
+    return { status: r.status, texto: await r.text(), cookies: sc.map((c) => c.split(';')[0]).join('; '), servidor: `${r.headers.get('server') || ''} ${r.headers.get('cf-ray') ? 'cf' : ''}`.trim() };
+  } catch (e) { return { status: 0, texto: '', cookies: '', error: (e.cause && e.cause.code) || e.message }; }
 }
+
+// Cabeceras de un Chrome real
+const CHROME = {
+  'sec-ch-ua': '"Not-A.Brand";v="99", "Google Chrome";v="137", "Chromium";v="137"', 'sec-ch-ua-mobile': '?0', 'sec-ch-ua-platform': '"Windows"',
+  'Upgrade-Insecure-Requests': '1', Priority: 'u=0, i', 'Accept-Encoding': 'gzip, deflate, br'
+};
 
 // Una opción de la agenda: /embed/eventos.html?r=<base64 de https://tvf90.com/X.php?stream=Y>
 const decodificar = (ruta) => {
@@ -30,14 +37,14 @@ const cache = new Map();
 async function resolver(urlEnvoltorio) {
   if (cache.has(urlEnvoltorio)) return cache.get(urlEnvoltorio);
   const trabajo = (async () => {
-    const env = await pedir(urlEnvoltorio, { Referer: `${SITIO}/`, Accept: 'text/html,*/*', 'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'cross-site' });
+    const env = await pedir(urlEnvoltorio, { ...CHROME, Referer: `${SITIO}/embed/eventos.html`, Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8', 'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'cross-site' });
     nota(`envoltorio ${env.status}${env.error ? ' ' + env.error : ''} ${urlEnvoltorio.replace(/^https?:\/\//, '')}`);
     const marco = (env.texto.match(/<iframe[^>]*id=["']player-frame["'][^>]*>/i) || env.texto.match(/<iframe[^>]*>/i) || [''])[0];
     const src = (marco.match(/src=["']([^"']+)["']/i) || [])[1];
     if (!src) return '';
     const interno = new URL(src, urlEnvoltorio).href;
-    const r = await pedir(interno, { Referer: urlEnvoltorio, Accept: 'text/html,application/xhtml+xml,*/*', 'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin' });
-    nota(`interno ${r.status}${r.error ? ' ' + r.error : ''} ${interno.replace(/^https?:\/\//, '')} ${r.status === 200 && !/m3u8/.test(r.texto) ? '(sin m3u8: ' + r.texto.slice(0, 60).replace(/\s+/g, ' ') + ')' : ''}`);
+    const r = await pedir(interno, { ...CHROME, ...(env.cookies ? { Cookie: env.cookies } : {}), Referer: urlEnvoltorio, Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8', 'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin' });
+    nota(`interno ${r.status}${r.error ? ' ' + r.error : ''} [${r.servidor}] cookies:${env.cookies ? 'sí' : 'no'} ${interno.replace(/^https?:\/\//, '')} ${!/m3u8/.test(r.texto) ? '(respuesta: ' + r.texto.slice(0, 120).replace(/\s+/g, ' ') + ')' : ''}`);
     const m = r.texto.match(/["']src["']\s*:\s*["']([^"']+\.m3u8[^"']*)["']/i);
     return m ? m[1].replace(/\\\//g, '/') : '';
   })();
