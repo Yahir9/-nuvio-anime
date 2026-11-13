@@ -6,6 +6,7 @@
 const VERSION = '1.0.0';
 const API = (typeof process !== 'undefined' && process.env && process.env.DEPORTES_API) || 'https://api.wqxag.com/diaries.json';
 const SITIO = 'https://futbollibretvplay.org';
+const PAGES = (typeof process !== 'undefined' && process.env && process.env.DEPORTES_PAGES) || 'https://yahir9.github.io/-nuvio-anime';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36';
 const PRESUPUESTO = 30000;
 let inicio = Date.now();
@@ -71,10 +72,19 @@ async function resolver(envoltorio) {
   return m[1].replace(/\\\//g, '/');
 }
 
+// Nuvio TV solo ejecuta plugins con ids de películas reales: el addon usa "casillas" (ids reales) y mapa.json dice a qué partido corresponde cada una.
+async function desdeMapa(id) {
+  if (!/^(tt\d{7}|\d{1,9})$/.test(id)) return '';
+  const r = await pedir(`${PAGES}/deportes/mapa.json`, { Accept: 'application/json' });
+  let m = null;
+  try { m = JSON.parse(r.texto); } catch (e) { /* nada */ }
+  return m && m[id] ? String(m[id]) : '';
+}
+
 async function getStreams(id, tipo) {
   try {
-    const n = (String(id || '').match(/^dep_(\d+)$/) || [])[1];
-    if (!n) return [];
+    let n = (String(id || '').match(/^dep_(\d+)$/) || [])[1];
+    if (!n) { n = await desdeMapa(String(id || '').trim()); if (!n) return []; }
     const a = await pedir(API, { Accept: 'application/json', Referer: `${SITIO}/`, Origin: SITIO });
     let datos = null;
     try { datos = JSON.parse(a.texto); } catch (e) { /* nada */ }
@@ -104,9 +114,12 @@ module.exports = {
   getStreams: (id, tipo, t, e) => {
     inicio = Date.now();
     motivo = '';
-    if (!/^dep_\d+$/.test(String(id || '').trim())) return Promise.resolve([]);
+    const sid = String(id || '').trim();
+    const esDep = /^dep_\d+$/.test(sid);
+    if (!esDep && !/^(tt\d{7}|\d{1,9})$/.test(sid)) return Promise.resolve([]);
     return conLimite(getStreams(String(id).trim(), tipo, t, e), PRESUPUESTO + 3000, null).then((s) => {
       if (s && s.length) return s;
+      if (!motivo && !esDep) return [];
       const por = motivo || 'Sin respuesta a tiempo';
       return [{ name: `Deportes v${VERSION}: ${por.slice(0, 60)}`, title: por, url: 'https://futbollibretvplay.org/', quality: por.slice(0, 90), language: por.slice(60, 160) || 'Diagnóstico', provider: 'Deportes' }];
     });

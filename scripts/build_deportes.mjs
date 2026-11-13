@@ -146,27 +146,53 @@ async function main() {
     w(`stream/movie/${id}.json`, { streams: [] }); // vacío: los enlaces los pone el plugin en el dispositivo
   }
   metas.sort((x, y) => x._t - y._t);
-  // Eventos fijos de prueba (siempre disponibles) para comprobar qué ids acepta cada aparato.
+  // Nuvio TV solo ejecuta plugins con ids de películas reales: cada partido usa el id de una película muy antigua ("casilla")
+  // y el archivo mapa.json dice a qué partido corresponde cada casilla (se genera junto con el catálogo, así nunca se desfasa).
+  const mapa = { generado: new Date().toISOString() };
   {
-    const pruebas = [
-      { id: 'dep_8', letra: 'A', que: 'fuente del addon', streams: [{ name: 'Prueba 1080p', title: 'Video de prueba 1080p (HLS)', quality: '1080p', url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' }] },
-      { id: 'dep_9', letra: 'B', que: 'solo plugin, id dep_', streams: [] },
-      { id: 'tt9000001', letra: 'C', que: 'solo plugin, id tt', streams: [] },
-      { id: 'tmdb:9000000001', letra: 'D', que: 'solo plugin, id tmdb', streams: [] },
-      { id: 'tt0000001', letra: 'E', que: 'solo plugin, id real', streams: [] },
-    ];
-    for (const t of pruebas.reverse()) {
-      const okP = hacerPortada(path.join(SALIDA, 'img', `${t.id.replace(/\W/g, '_')}.png`), 'PRUEBA', `Prueba ${t.letra}`, '00:00', t.que.toUpperCase());
-      const m0 = { id: t.id, type: 'movie', name: `Prueba ${t.letra} (${t.que})`, poster: okP ? `${BASE_PAGES}/deportes/img/${t.id.replace(/\W/g, '_')}.png` : undefined, posterShape: 'poster',
-        description: `Evento fijo de prueba ${t.letra}: ${t.que}.`, releaseInfo: '' };
-      metas.unshift({ ...m0, _t: 0 });
-      w(`meta/movie/${t.id}.json`, { meta: m0 });
-      w(`stream/movie/${t.id}.json`, { streams: t.streams });
+    const casillas = [];
+    const KEY = process.env.TMDB_KEY || (fs.readFileSync(path.join(RAIZ, 'providers/jkanime.js'), 'utf8').match(/\|\|\s*'([0-9a-f]{32})'/) || [])[1];
+    for (let n = 1; n <= 60 && casillas.length < 30; n++) {
+      const imdb = 'tt' + String(n).padStart(7, '0');
+      let tmdb = '';
+      if (KEY) {
+        try {
+          const r = await fetch(`https://api.themoviedb.org/3/find/${imdb}?api_key=${KEY}&external_source=imdb_id`);
+          const j = r.ok ? await r.json() : null;
+          const x = j && ((j.movie_results || [])[0] || (j.tv_results || [])[0]);
+          if (x) tmdb = String(x.id);
+          else continue; // TMDB no la conoce: no sirve de casilla
+        } catch (e) { /* sin red: se usa sin tmdb */ }
+      }
+      casillas.push({ imdb, tmdb });
     }
+    diag.casillas = casillas.length;
+    diag.casillasTMDB = casillas.filter((c) => c.tmdb).length;
+    metas.forEach((m, i) => {
+      const c = casillas[i];
+      if (!c) { diag.sinCasilla = (diag.sinCasilla || 0) + 1; return; }
+      const evId = Number(String(m.id).replace('dep_', ''));
+      mapa[c.imdb] = evId; if (c.tmdb) mapa[c.tmdb] = evId;
+      const nuevoMeta = { ...m, id: c.imdb, _t: undefined };
+      w(`meta/movie/${c.imdb}.json`, { meta: nuevoMeta });
+      w(`stream/movie/${c.imdb}.json`, { streams: [] });
+      m.id = c.imdb;
+    });
+    for (let i = metas.length - 1; i >= 0; i--) if (!/^tt/.test(metas[i].id)) metas.splice(i, 1); // sin casilla: no se lista
+  }
+  w('mapa.json', mapa);
+  // Evento fijo de prueba con un video público (comprueba la reproducción)
+  {
+    const okP = hacerPortada(path.join(SALIDA, 'img', 'dep_8.png'), 'PRUEBA', 'Comprobar reproducción', '00:00', 'SIEMPRE DISPONIBLE');
+    const m0 = { id: 'dep_8', type: 'movie', name: 'Prueba de reproducción', poster: okP ? `${BASE_PAGES}/deportes/img/dep_8.png` : undefined, posterShape: 'poster',
+      description: 'Video de prueba para comprobar que la reproducción funciona.', releaseInfo: '' };
+    metas.unshift({ ...m0, _t: 0 });
+    w('meta/movie/dep_8.json', { meta: m0 });
+    w('stream/movie/dep_8.json', { streams: [{ name: 'Prueba 1080p', title: 'Video de prueba 1080p (HLS)', quality: '1080p', url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' }] });
   }
   w('catalog/movie/dep-hoy.json', { metas: metas.map((m) => ({ ...m, _t: undefined })) });
   w('manifest.json', { id: 'com.yahir9.deportes', version: '1.1.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día; los enlaces en vivo los pone el plugin Deportes',
-    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt9000', 'tt0000', 'tmdb:9000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
+    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt0000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
   // Copia del addon con dirección y id nuevos (para aparatos que guardaron la copia vieja): /tv-deportes/
   try {
     const SALIDA2 = path.join(path.dirname(SALIDA), 'tv-deportes');
