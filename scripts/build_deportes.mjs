@@ -150,10 +150,10 @@ async function main() {
   {
     const okP = hacerPortada(path.join(SALIDA, 'img', 'dep_0.png'), 'PRUEBA', 'Comprobar fuentes', '00:00', 'SIEMPRE DISPONIBLE');
     const m0 = { id: 'dep_0', type: 'movie', name: 'Prueba de fuentes', poster: okP ? `${BASE_PAGES}/deportes/img/dep_0.png` : undefined, posterShape: 'poster',
-      description: 'Evento fijo para comprobar que los plugins funcionan en este aparato. Si abres esto y sale una fuente, el plugin corre; los partidos reales salen en la lista de abajo.', releaseInfo: '' };
+      description: 'Evento fijo para comprobar que los plugins funcionan en este aparato. Trae un video de prueba para comprobar que la reproducción funciona; los partidos reales salen en la lista de abajo.', releaseInfo: '' };
     metas.unshift({ ...m0, _t: 0 });
     w('meta/movie/dep_0.json', { meta: m0 });
-    w('stream/movie/dep_0.json', { streams: [] });
+    w('stream/movie/dep_0.json', { streams: [{ name: 'Prueba', title: 'Video de prueba (HLS) para comprobar la reproducción', url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' }] });
   }
   w('catalog/movie/dep-hoy.json', { metas: metas.map((m) => ({ ...m, _t: undefined })) });
   w('manifest.json', { id: 'com.yahir9.deportes', version: '1.1.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día; los enlaces en vivo los pone el plugin Deportes',
