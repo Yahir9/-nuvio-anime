@@ -42,7 +42,7 @@ async function buscar(a, esPelicula) {
     const anime = lista.filter((x) => (x.genre_ids || []).includes(16));
     const exacto = anime.find((x) => [x.name, x.title, x.original_name, x.original_title].some((n) => norm(n) === norm(c)));
     const elegido = exacto || anime[0];
-    if (elegido) return { tipo, id: elegido.id, nombre: elegido.name || elegido.title };
+    if (elegido) return { tipo, id: elegido.id, nombre: elegido.name || elegido.title, poster: elegido.poster_path ? `https://image.tmdb.org/t/p/w500${elegido.poster_path}` : '', fondo: elegido.backdrop_path ? `https://image.tmdb.org/t/p/w780${elegido.backdrop_path}` : '' };
   }
   return null;
 }
@@ -66,7 +66,7 @@ async function main() {
     const imdb = ext && ext.imdb_id;
     // Sin código de IMDb: va a una fila aparte con ID de TMDB (tmdb:123); no sé si Nuvio lo abre
     const id = imdb || `tmdb:${h.id}`;
-    const meta = { id, type: esPelicula ? 'movie' : 'series', name: h.nombre, poster: a.image, posterShape: 'poster', description: String(a.synopsis || '').replace(/\s+/g, ' ').trim() };
+    const meta = { id, type: esPelicula ? 'movie' : 'series', name: h.nombre, poster: h.poster || a.image, background: h.fondo || undefined, posterShape: 'poster', description: String(a.synopsis || '').replace(/\s+/g, ' ').trim() };
     if (!imdb) { otros.push(meta); (diag.sinImdb = diag.sinImdb || []).push(`${a.title} -> tmdb:${h.id}`); continue; }
     (esPelicula ? pelis : series).push(meta);
     diag.relaciones.push(`${a.title} -> ${h.nombre} (${imdb})`);
