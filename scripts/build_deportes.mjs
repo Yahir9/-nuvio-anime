@@ -153,6 +153,7 @@ async function main() {
       { id: 'dep_9', letra: 'B', que: 'solo plugin, id dep_', streams: [] },
       { id: 'tt9000001', letra: 'C', que: 'solo plugin, id tt', streams: [] },
       { id: 'tmdb:9000000001', letra: 'D', que: 'solo plugin, id tmdb', streams: [] },
+      { id: 'tt0000001', letra: 'E', que: 'solo plugin, id real', streams: [] },
     ];
     for (const t of pruebas.reverse()) {
       const okP = hacerPortada(path.join(SALIDA, 'img', `${t.id.replace(/\W/g, '_')}.png`), 'PRUEBA', `Prueba ${t.letra}`, '00:00', t.que.toUpperCase());
@@ -165,7 +166,7 @@ async function main() {
   }
   w('catalog/movie/dep-hoy.json', { metas: metas.map((m) => ({ ...m, _t: undefined })) });
   w('manifest.json', { id: 'com.yahir9.deportes', version: '1.1.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día; los enlaces en vivo los pone el plugin Deportes',
-    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt9000', 'tmdb:9000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
+    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt9000', 'tt0000', 'tmdb:9000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
   // Copia del addon con dirección y id nuevos (para aparatos que guardaron la copia vieja): /tv-deportes/
   try {
     const SALIDA2 = path.join(path.dirname(SALIDA), 'tv-deportes');
