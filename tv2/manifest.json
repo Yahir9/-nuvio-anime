@@ -1,7 +1,7 @@
 {
   "id": "com.yahir9.jkanime.v2",
   "name": "JKAnime v2",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "Proveedor de anime en español (subtitulado y latino) desde jkanime.net",
   "author": "",
   "scrapers": [
@@ -9,26 +9,26 @@
       "id": "jkanime-v2",
       "name": "JKAnime v2",
       "description": "Anime en español (subtitulado, latino y castellano) desde jkanime.net",
-      "version": "2.1.0",
+      "version": "2.1.1",
       "author": "",
       "supportedTypes": [
         "movie",
         "tv"
       ],
-      "filename": "providers/jkanime-210.js",
+      "filename": "providers/jkanime-211.js",
       "enabled": true
     },
     {
       "id": "deportes-100",
       "name": "Deportes en vivo",
       "description": "Enlaces en vivo para los partidos del addon Deportes en vivo",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "author": "",
       "supportedTypes": [
         "movie",
         "tv"
       ],
-      "filename": "providers/deportes-120.js",
+      "filename": "providers/deportes-121.js",
       "enabled": true
     }
   ]
