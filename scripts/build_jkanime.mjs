@@ -29,6 +29,10 @@ globalThis.fetch = (url, o = {}) => {
   return fetchOriginal(url, o);
 };
 
+// Datos guardados desde el navegador del usuario (JKAnime bloquea las IP de GitHub): data/jkanime-datos.json
+const GUARDADOS = (() => { try { return JSON.parse(fs.readFileSync(path.join(RAIZ, 'data', 'jkanime-datos.json'), 'utf8')); } catch (e) { return { directorio: [], episodios: {} }; } })();
+let EN_VIVO = true; // false = JKAnime no responde desde aquí; se usan los datos guardados y no se resuelven enlaces directos
+
 const diag = { inicio: new Date().toISOString(), cookiesCloudflare: !!COOKIES_CF, peticiones: [], errores: [], series: 0, peliculas: 0, episodios: 0, streamsDirectos: 0 };
 const nota = (m) => { console.log(m); };
 const error = (m) => { console.log('ERROR:', m); if (diag.errores.length < 40) diag.errores.push(String(m)); };
@@ -82,6 +86,12 @@ async function directorio() {
     ultimaPag = Number(d.last_page) || 1;
     for (const a of d.data) if (a && a.slug && /^[a-z0-9][a-z0-9-]*$/i.test(a.slug)) lista.push(a);
   }
+  if (!lista.length && GUARDADOS.directorio.length) {
+    EN_VIVO = false;
+    diag.modo = 'datos guardados';
+    return GUARDADOS.directorio.filter((a) => a && a.slug && /^[a-z0-9][a-z0-9-]*$/i.test(a.slug));
+  }
+  diag.modo = 'en vivo';
   return lista.slice(0, MAX_SERIES);
 }
 
@@ -89,6 +99,7 @@ const etiqueta = (html, re) => { const m = html.match(re); return m ? m[1] : '';
 const sinTags = (t) => String(t || '').replace(/<[^>]+>/g, ' ').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#0?39;/g, "'").replace(/\s+/g, ' ').trim();
 
 async function episodiosDe(slug) {
+  if (!EN_VIVO) return { episodios: (GUARDADOS.episodios && GUARDADOS.episodios[slug]) || [], fondo: '' };
   const pag = await http(`${BASE}/${slug}/`);
   if (!pag.ok) { error(`${slug}: página del anime estado ${pag.status}`); return { episodios: [], fondo: '' }; }
   const html = pag.texto;
@@ -135,6 +146,7 @@ function aStream(s) {
 }
 
 async function directos(slug, numero, esPelicula, titulo) {
+  if (!EN_VIVO) return [];
   try {
     interno.reiniciar();
     const { servidores, pagina } = await interno.servidoresDe(slug, numero, esPelicula);
@@ -157,7 +169,7 @@ async function main() {
   for (const a of lista) {
     const slug = a.slug;
     const id = `jk_${slug}`;
-    const esPelicula = /pel[ií]cula|movie/i.test(a.tipo || '');
+    const esPelicula = /pel[ií]cula|movie/i.test(`${a.tipo || ''} ${a.type || ''}`);
     const tipo = esPelicula ? 'movie' : 'series';
     const poster = abs(a.image) || `https://cdn.jkdesa.com/assets/images/animes/image/${slug}.jpg`;
     const resumen = { id, type: tipo, name: sinTags(a.title), poster, posterShape: 'poster', description: sinTags(a.synopsis) };
@@ -205,7 +217,7 @@ async function main() {
   escribir('diagnostico.json', JSON.stringify(diag, null, 2));
   escribir('index.html', `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>JKAnime addon</title><body style="font-family:sans-serif;max-width:40em;margin:2em auto;padding:0 1em"><h1>JKAnime para Nuvio</h1><p>Series: ${diag.series} · Películas: ${diag.peliculas} · Episodios: ${diag.episodios}</p><p>Agrega este enlace en Nuvio &rarr; Addons: <code>manifest.json</code> de esta misma página.</p><p><a href="manifest.json">manifest.json</a> · <a href="diagnostico.json">diagnostico.json</a></p>`);
   nota(JSON.stringify(diag, null, 2));
-  if (!lista.length) { error('Catálogo vacío: JKAnime no respondió desde GitHub'); process.exitCode = 1; }
+  if (!lista.length) { error('Catálogo vacío: JKAnime no respondió desde GitHub y no hay data/jkanime-datos.json'); process.exitCode = 1; }
 }
 
 main().catch((e) => { console.error(e); process.exitCode = 1; });
