@@ -165,6 +165,16 @@ async function main() {
   w('catalog/movie/dep-hoy.json', { metas: metas.map((m) => ({ ...m, _t: undefined })) });
   w('manifest.json', { id: 'com.yahir9.deportes', version: '1.1.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día; los enlaces en vivo los pone el plugin Deportes',
     resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt9000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
+  // Copia del addon con dirección y id nuevos (para aparatos que guardaron la copia vieja): /tv-deportes/
+  try {
+    const SALIDA2 = path.join(path.dirname(SALIDA), 'tv-deportes');
+    fs.rmSync(SALIDA2, { recursive: true, force: true });
+    fs.cpSync(SALIDA, SALIDA2, { recursive: true, filter: (src) => !src.endsWith('diagnostico.json') });
+    const mf = JSON.parse(fs.readFileSync(path.join(SALIDA2, 'manifest.json'), 'utf8'));
+    mf.id = 'com.yahir9.deportes.tv'; mf.name = 'Deportes TV'; mf.version = '2.0.0';
+    fs.writeFileSync(path.join(SALIDA2, 'manifest.json'), JSON.stringify(mf));
+    diag.copiaTV = 'ok';
+  } catch (e) { diag.copiaTV = `error: ${e.message}`; }
   diag.fin = new Date().toISOString();
   fs.writeFileSync(path.join(SALIDA, 'diagnostico.json'), JSON.stringify(diag, null, 2));
   console.log(JSON.stringify(diag, null, 2));
