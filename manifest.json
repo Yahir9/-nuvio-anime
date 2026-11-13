@@ -1,7 +1,7 @@
 {
   "id": "com.yahir9.jkanime.v2",
   "name": "JKAnime v2",
-  "version": "2.0.4",
+  "version": "2.1.0",
   "description": "Proveedor de anime en español (subtitulado y latino) desde jkanime.net",
   "author": "",
   "scrapers": [
@@ -16,6 +16,18 @@
         "tv"
       ],
       "filename": "providers/jkanime-204.js",
+      "enabled": true
+    },
+    {
+      "id": "deportes-100",
+      "name": "Deportes en vivo",
+      "description": "Enlaces en vivo para los partidos del addon Deportes en vivo",
+      "version": "1.0.0",
+      "author": "",
+      "supportedTypes": [
+        "movie"
+      ],
+      "filename": "providers/deportes-100.js",
       "enabled": true
     }
   ]

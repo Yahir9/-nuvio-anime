@@ -76,7 +76,7 @@ const hhmm = (d) => new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: 
 
 async function main() {
   fs.rmSync(SALIDA, { recursive: true, force: true });
-  for (const d of ['catalog/movie', 'meta/movie', 'stream/movie']) fs.mkdirSync(path.join(SALIDA, d), { recursive: true });
+  for (const d of ['catalog/movie', 'meta/movie']) fs.mkdirSync(path.join(SALIDA, d), { recursive: true });
   const w = (r, o) => fs.writeFileSync(path.join(SALIDA, r), JSON.stringify(o));
 
   const a = await pedir(API, { Accept: 'application/json', Referer: `${SITIO}/`, Origin: SITIO });
@@ -97,23 +97,15 @@ async function main() {
     const titulo = limpiar(at.diary_description).replace(/\s*:\s*/, ': ');
     const opciones = ((at.embeds || {}).data || []).map((e) => ({ nombre: limpiar(e.attributes.embed_name), url: decodificar(e.attributes.embed_iframe) })).filter((e) => e.url);
     diag.opciones += opciones.length;
-    const streams = [];
-    for (const o of opciones) {
-      const m3u8 = await resolver(o.url);
-      if (!m3u8) continue;
-      diag.resueltas++;
-      streams.push({ name: `Deportes (${o.nombre})`, title: `${titulo}\n${o.nombre} · en vivo`, url: m3u8, behaviorHints: { notWebReady: true, proxyHeaders: { request: { Referer: 'https://tvf90.com/', Origin: 'https://tvf90.com', 'User-Agent': UA } } } });
-    }
     const meta = { id, type: 'movie', name: `${hhmm(cuando)} ${titulo}`, poster: flag ? `${SITIO}${flag}` : undefined, posterShape: 'square', background: flag ? `${SITIO}${flag}` : undefined,
       description: `${titulo}\n${pais.name || ''}\nHora de México: ${hhmm(cuando)}\nCanales: ${opciones.map((o) => o.nombre).join(', ') || 'sin canales'}`, releaseInfo: at.date_diary, _t: cuando.getTime() };
     metas.push(meta);
     w(`meta/movie/${id}.json`, { meta: { ...meta, _t: undefined } });
-    w(`stream/movie/${id}.json`, { streams });
   }
   metas.sort((x, y) => x._t - y._t);
   w('catalog/movie/dep-hoy.json', { metas: metas.map((m) => ({ ...m, _t: undefined })) });
-  w('manifest.json', { id: 'com.yahir9.deportes', version: '1.0.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día con enlaces en vivo',
-    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
+  w('manifest.json', { id: 'com.yahir9.deportes', version: '1.0.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día; los enlaces en vivo los pone el plugin Deportes',
+    resources: ['catalog', 'meta'], types: ['movie'], idPrefixes: ['dep_'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
   diag.fin = new Date().toISOString();
   fs.writeFileSync(path.join(SALIDA, 'diagnostico.json'), JSON.stringify(diag, null, 2));
   console.log(JSON.stringify(diag, null, 2));
