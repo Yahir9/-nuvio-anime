@@ -37,6 +37,9 @@ jobs:
           node-version: 22
       - name: Generar catálogo
         run: node scripts/build_catalogo.mjs
+      - name: Instalar ImageMagick y fuentes (portadas)
+        continue-on-error: true
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick fonts-dejavu-core
       - name: Generar agenda deportiva
         continue-on-error: true
         run: node scripts/build_deportes.mjs

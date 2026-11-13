@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -74,9 +75,42 @@ const limpiar = (t) => String(t || '').replace(/\s+/g, ' ').trim();
 const instante = (fecha, hora) => new Date(`${fecha}T${hora}-05:00`);
 const hhmm = (d) => new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Mexico_City' }).format(d);
 
+// ¿Ya terminó? No hay hora de fin en la agenda: se calcula por deporte (con margen para tiempos extra)
+function duracionHoras(t) {
+  const x = String(t).toLowerCase();
+  if (/\bnfl\b/.test(x)) return 3.75;
+  if (/\bmlb\b|béisbol|beisbol/.test(x)) return 3.5;
+  if (/\bnba\b|\bnhl\b|basquet|básquet|baloncesto|hockey|voley|vóley/.test(x)) return 3.25;
+  if (/tenis|tennis|wta|atp|roland|wimbledon/.test(x)) return 4.5;
+  if (/box|knockout|ufc|mma|lucha|wwe|aew/.test(x)) return 4;
+  if (/f1|formula 1|fórmula 1|motogp|nascar|gran premio|carrera/.test(x)) return 3;
+  if (/golf/.test(x)) return 6;
+  return 2.75; // fútbol y demás
+}
+const terminado = (inicioMs, titulo, ahora) => ahora > inicioMs + duracionHoras(titulo) * 3600e3;
+
+// Portada con torneo, equipos y hora (ImageMagick). Si no está instalado, devuelve false.
+function hacerPortada(archivo, liga, equipos, hora, pais) {
+  const limpio = (t) => String(t || '').replace(/[%\\]/g, ' ').replace(/^@+/, '').trim() || ' ';
+  const fuente = process.env.FUENTE_PORTADA || 'DejaVu-Sans-Bold';
+  const cap = (texto, punto, color, ancho) => ['(', '-background', 'none', '-fill', color, '-font', fuente, '-pointsize', String(punto), '-size', `${ancho}x`, '-gravity', 'center', `caption:${limpio(texto)}`, ')'];
+  try {
+    execFileSync('convert', [
+      '-size', '600x900', 'gradient:#1d3f9a-#070b1c',
+      ...cap(liga || 'Deportes', 34, '#9ec1ff', 520), '-gravity', 'north', '-geometry', '+0+110', '-composite',
+      ...cap(equipos, equipos.length > 55 ? 44 : 56, '#ffffff', 520), '-gravity', 'center', '-geometry', '+0+10', '-composite',
+      ...cap(hora, 110, '#ffd34d', 520), '-gravity', 'south', '-geometry', '+0+150', '-composite',
+      ...cap(`HORA DE MÉXICO${pais ? ' · ' + pais.toUpperCase() : ''}`, 24, '#c7d2fe', 520), '-gravity', 'south', '-geometry', '+0+90', '-composite',
+      archivo
+    ], { stdio: 'pipe', timeout: 30000 });
+    return true;
+  } catch (e) { diag.errores.push(`portada: ${String(e.message).slice(0, 100)}`); return false; }
+}
+const BASE_PAGES = process.env.PAGES_BASE || (process.env.GITHUB_REPOSITORY ? `https://${process.env.GITHUB_REPOSITORY.split('/')[0].toLowerCase()}.github.io/${process.env.GITHUB_REPOSITORY.split('/')[1]}` : 'https://yahir9.github.io/-nuvio-anime');
+
 async function main() {
   fs.rmSync(SALIDA, { recursive: true, force: true });
-  for (const d of ['catalog/movie', 'meta/movie']) fs.mkdirSync(path.join(SALIDA, d), { recursive: true });
+  for (const d of ['catalog/movie', 'meta/movie', 'img']) fs.mkdirSync(path.join(SALIDA, d), { recursive: true });
   const w = (r, o) => fs.writeFileSync(path.join(SALIDA, r), JSON.stringify(o));
 
   const a = await pedir(API, { Accept: 'application/json', Referer: `${SITIO}/`, Origin: SITIO });
@@ -91,13 +125,21 @@ async function main() {
     const at = ev.attributes || {};
     const cuando = instante(at.date_diary, at.diary_hour);
     if (isNaN(cuando)) continue;
+    if (terminado(cuando.getTime(), `${at.diary_description}`, Date.now())) { diag.terminados = (diag.terminados || 0) + 1; continue; }
     const id = `dep_${ev.id}`;
     const pais = (((at.country || {}).data || {}).attributes) || {};
     const flag = pais.image && pais.image.data && pais.image.data.attributes && pais.image.data.attributes.url;
     const titulo = limpiar(at.diary_description).replace(/\s*:\s*/, ': ');
     const opciones = ((at.embeds || {}).data || []).map((e) => ({ nombre: limpiar(e.attributes.embed_name), url: decodificar(e.attributes.embed_iframe) })).filter((e) => e.url);
     diag.opciones += opciones.length;
-    const meta = { id, type: 'movie', name: `${hhmm(cuando)} ${titulo}`, poster: flag ? `${SITIO}${flag}` : undefined, posterShape: 'square', background: flag ? `${SITIO}${flag}` : undefined,
+    // "Torneo: A vs B" o "Torneo – A vs B" -> liga y equipos
+    const partes = titulo.match(/^(.{2,70}?)\s*(?::|–|—)\s+(.+)$/);
+    const liga = partes ? partes[1] : (pais.name || 'Deportes');
+    const equipos = partes ? partes[2] : titulo;
+    const okPortada = hacerPortada(path.join(SALIDA, 'img', `${id}.png`), liga, equipos, hhmm(cuando), partes ? (pais.name || '') : '');
+    const imagen = okPortada ? `${BASE_PAGES}/deportes/img/${id}.png` : (flag ? `${SITIO}${flag}` : undefined);
+    if (okPortada) diag.portadas = (diag.portadas || 0) + 1;
+    const meta = { id, type: 'movie', name: `${hhmm(cuando)} ${titulo}`, poster: imagen, posterShape: 'poster', background: imagen,
       description: `${titulo}\n${pais.name || ''}\nHora de México: ${hhmm(cuando)}\nCanales: ${opciones.map((o) => o.nombre).join(', ') || 'sin canales'}`, releaseInfo: at.date_diary, _t: cuando.getTime() };
     metas.push(meta);
     w(`meta/movie/${id}.json`, { meta: { ...meta, _t: undefined } });
