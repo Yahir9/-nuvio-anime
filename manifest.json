@@ -1,21 +1,21 @@
 {
-  "id": "com.yahir9.jkanime",
-  "name": "JKAnime para Nuvio",
-  "version": "1.0.2",
+  "id": "com.yahir9.jkanime.v2",
+  "name": "JKAnime v2",
+  "version": "2.0.0",
   "description": "Proveedor de anime en español (subtitulado y latino) desde jkanime.net",
   "author": "",
   "scrapers": [
     {
-      "id": "jkanime",
-      "name": "JKAnime",
+      "id": "jkanime-v2",
+      "name": "JKAnime v2",
       "description": "Anime en español (subtitulado, latino y castellano) desde jkanime.net",
-      "version": "1.0.2",
+      "version": "2.0.0",
       "author": "",
       "supportedTypes": [
         "movie",
         "tv"
       ],
-      "filename": "providers/jkanime.js",
+      "filename": "providers/jkanime-v2.js",
       "enabled": true
     }
   ]
