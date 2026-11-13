@@ -26,6 +26,8 @@ const PESO_AUDIO = { Latino: 3, Castellano: 2, Subtitulado: 1 };
 const HAY_RELOJ = typeof setTimeout === 'function';
 const PRESUPUESTO = 40000; // ms máximos por llamada a getStreams
 let inicio = Date.now();
+let motivo = ''; // por qué no hubo resultados (se muestra como fuente de diagnóstico)
+const DIAGNOSTICO = true;
 const restante = () => PRESUPUESTO - (Date.now() - inicio);
 
 /* ------------------------------------------------------------------ red */
@@ -530,7 +532,7 @@ async function getStreams(tmdbId, mediaType, season, episode) {
     const tipo = mediaType === 'movie' ? 'movie' : 'tv';
     const esPelicula = tipo === 'movie';
     const datos = await datosTmdb(tmdbId, tipo);
-    if (!datos || !datos.titulos.length) return [];
+    if (!datos || !datos.titulos.length) { motivo = 'No se pudieron leer los títulos en TMDB (revisa la API key)'; return []; }
     const temporada = Number(season) || 1;
     const ep = Number(episode) || 1;
 
@@ -542,14 +544,16 @@ async function getStreams(tmdbId, mediaType, season, episode) {
       hallado = elegir([...vistos.values()], datos.titulos, temporada, esPelicula);
       if (hallado) break;
     }
-    if (!hallado) return [];
+    if (!hallado) { motivo = `JKAnime no devolvió coincidencias para: ${datos.titulos.slice(0, 3).join(' | ')} (${vistos.size} resultados vistos${vistos.size ? ': ' + [...vistos.values()].slice(0, 3).map((c) => c.titulo).join(' | ') : ', 0 = el sitio bloqueó o cambió'})`; return []; }
 
     const numero = hallado.absoluto ? episodiosPrevios(datos, temporada) + ep : ep;
     const { servidores, pagina } = await servidoresDe(hallado.c.slug, numero, esPelicula);
-    if (!servidores.length) return [];
+    if (!servidores.length) { motivo = `Encontré ${hallado.c.slug} pero el episodio ${numero} no tiene servidores`; return []; }
 
     const titulo = esPelicula ? (datos.anio ? `${datos.titulo} (${datos.anio})` : datos.titulo) : `${datos.titulo} - T${temporada} E${ep}`;
-    return await armar(servidores, titulo, pagina);
+    const salida = await armar(servidores, titulo, pagina);
+    if (!salida.length) motivo = `Servidores encontrados (${servidores.map((x) => x.nombre).join(', ')}) pero ninguno dio un video directo`;
+    return salida;
   } catch (e) {
     console.log(`[${FUENTE}] ${e && e.message}`);
     return [];
@@ -559,7 +563,12 @@ async function getStreams(tmdbId, mediaType, season, episode) {
 function limitar(fn) {
   return (...argumentos) => {
     inicio = Date.now();
-    return conLimite(fn(...argumentos), PRESUPUESTO + 5000, null).then((salida) => salida || []);
+    motivo = '';
+    return conLimite(fn(...argumentos), PRESUPUESTO + 5000, null).then((salida) => {
+      if (salida && salida.length) return salida;
+      if (!DIAGNOSTICO) return [];
+      return [{ name: 'JKAnime (diagnóstico)', title: motivo || 'Sin respuesta a tiempo (tardó más de 40 s o la red falló)', url: 'https://jkanime.net/', quality: 'Calidad: Auto', provider: FUENTE }];
+    });
   };
 }
 
