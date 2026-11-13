@@ -152,10 +152,11 @@ async function main() {
       { id: 'dep_8', letra: 'A', que: 'fuente del addon', streams: [{ name: 'Prueba 1080p', title: 'Video de prueba 1080p (HLS)', quality: '1080p', url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' }] },
       { id: 'dep_9', letra: 'B', que: 'solo plugin, id dep_', streams: [] },
       { id: 'tt9000001', letra: 'C', que: 'solo plugin, id tt', streams: [] },
+      { id: 'tmdb:9000000001', letra: 'D', que: 'solo plugin, id tmdb', streams: [] },
     ];
     for (const t of pruebas.reverse()) {
-      const okP = hacerPortada(path.join(SALIDA, 'img', `${t.id}.png`), 'PRUEBA', `Prueba ${t.letra}`, '00:00', t.que.toUpperCase());
-      const m0 = { id: t.id, type: 'movie', name: `Prueba ${t.letra} (${t.que})`, poster: okP ? `${BASE_PAGES}/deportes/img/${t.id}.png` : undefined, posterShape: 'poster',
+      const okP = hacerPortada(path.join(SALIDA, 'img', `${t.id.replace(/\W/g, '_')}.png`), 'PRUEBA', `Prueba ${t.letra}`, '00:00', t.que.toUpperCase());
+      const m0 = { id: t.id, type: 'movie', name: `Prueba ${t.letra} (${t.que})`, poster: okP ? `${BASE_PAGES}/deportes/img/${t.id.replace(/\W/g, '_')}.png` : undefined, posterShape: 'poster',
         description: `Evento fijo de prueba ${t.letra}: ${t.que}.`, releaseInfo: '' };
       metas.unshift({ ...m0, _t: 0 });
       w(`meta/movie/${t.id}.json`, { meta: m0 });
@@ -164,7 +165,7 @@ async function main() {
   }
   w('catalog/movie/dep-hoy.json', { metas: metas.map((m) => ({ ...m, _t: undefined })) });
   w('manifest.json', { id: 'com.yahir9.deportes', version: '1.1.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día; los enlaces en vivo los pone el plugin Deportes',
-    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt9000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
+    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt9000', 'tmdb:9000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
   // Copia del addon con dirección y id nuevos (para aparatos que guardaron la copia vieja): /tv-deportes/
   try {
     const SALIDA2 = path.join(path.dirname(SALIDA), 'tv-deportes');
