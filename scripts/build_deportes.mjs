@@ -146,18 +146,25 @@ async function main() {
     w(`stream/movie/${id}.json`, { streams: [] }); // vacío: los enlaces los pone el plugin en el dispositivo
   }
   metas.sort((x, y) => x._t - y._t);
-  // Evento fijo de prueba: sirve para comprobar en cualquier momento (aunque no haya partidos) que el plugin corre en tu aparato.
+  // Eventos fijos de prueba (siempre disponibles) para comprobar qué ids acepta cada aparato.
   {
-    const okP = hacerPortada(path.join(SALIDA, 'img', 'dep_8.png'), 'PRUEBA', 'Comprobar fuentes', '00:00', 'SIEMPRE DISPONIBLE');
-    const m0 = { id: 'dep_8', type: 'movie', name: 'Prueba de fuentes', poster: okP ? `${BASE_PAGES}/deportes/img/dep_8.png` : undefined, posterShape: 'poster',
-      description: 'Evento fijo para comprobar que los plugins funcionan en este aparato. Trae un video de prueba para comprobar que la reproducción funciona; los partidos reales salen en la lista de abajo.', releaseInfo: '' };
-    metas.unshift({ ...m0, _t: 0 });
-    w('meta/movie/dep_8.json', { meta: m0 });
-    w('stream/movie/dep_8.json', { streams: [{ name: 'Prueba 1080p', title: 'Video de prueba 1080p (HLS)', quality: '1080p', url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' }] });
+    const pruebas = [
+      { id: 'dep_8', letra: 'A', que: 'fuente del addon', streams: [{ name: 'Prueba 1080p', title: 'Video de prueba 1080p (HLS)', quality: '1080p', url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' }] },
+      { id: 'dep_9', letra: 'B', que: 'solo plugin, id dep_', streams: [] },
+      { id: 'tt9000001', letra: 'C', que: 'solo plugin, id tt', streams: [] },
+    ];
+    for (const t of pruebas.reverse()) {
+      const okP = hacerPortada(path.join(SALIDA, 'img', `${t.id}.png`), 'PRUEBA', `Prueba ${t.letra}`, '00:00', t.que.toUpperCase());
+      const m0 = { id: t.id, type: 'movie', name: `Prueba ${t.letra} (${t.que})`, poster: okP ? `${BASE_PAGES}/deportes/img/${t.id}.png` : undefined, posterShape: 'poster',
+        description: `Evento fijo de prueba ${t.letra}: ${t.que}.`, releaseInfo: '' };
+      metas.unshift({ ...m0, _t: 0 });
+      w(`meta/movie/${t.id}.json`, { meta: m0 });
+      w(`stream/movie/${t.id}.json`, { streams: t.streams });
+    }
   }
   w('catalog/movie/dep-hoy.json', { metas: metas.map((m) => ({ ...m, _t: undefined })) });
   w('manifest.json', { id: 'com.yahir9.deportes', version: '1.1.0', name: 'Deportes en vivo', description: 'Agenda deportiva del día; los enlaces en vivo los pone el plugin Deportes',
-    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
+    resources: ['catalog', 'meta', 'stream'], types: ['movie'], idPrefixes: ['dep_', 'tt9000'], catalogs: [{ type: 'movie', id: 'dep-hoy', name: 'Deportes - Hoy' }], behaviorHints: { configurable: false } });
   diag.fin = new Date().toISOString();
   fs.writeFileSync(path.join(SALIDA, 'diagnostico.json'), JSON.stringify(diag, null, 2));
   console.log(JSON.stringify(diag, null, 2));
