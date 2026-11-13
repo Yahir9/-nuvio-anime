@@ -47,6 +47,37 @@ async function buscar(a, esPelicula) {
   return null;
 }
 
+// Detalles de respaldo: solo para títulos que el servicio de metadatos de Nuvio (Cinemeta) no conoce
+async function cinemetaTiene(tipo, imdb) {
+  try {
+    const r = await fetch(`https://v3-cinemeta.strem.io/meta/${tipo}/${imdb}.json`, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok && r.status !== 404) return null; // no se pudo comprobar
+    const j = await r.json().catch(() => null);
+    return !!(j && j.meta && j.meta.name);
+  } catch (e) { return null; }
+}
+
+async function metaRespaldo(h, imdb, resumen) {
+  const d = await tmdb(`${h.tipo}/${h.id}`);
+  const meta = { ...resumen, id: imdb };
+  if (d) {
+    meta.background = d.backdrop_path ? `https://image.tmdb.org/t/p/w780${d.backdrop_path}` : meta.background;
+    meta.releaseInfo = String(d.first_air_date || d.release_date || '').slice(0, 4);
+    meta.genres = (d.genres || []).map((g) => g.name);
+    meta.runtime = d.runtime ? `${d.runtime} min` : undefined;
+  }
+  if (h.tipo === 'tv') {
+    const videos = [];
+    for (const t of (d && d.seasons) || []) {
+      if (!(t.season_number >= 1) || !(t.episode_count > 0)) continue;
+      const base = Date.parse(t.air_date || '') || Date.UTC(2000, 0, 1);
+      for (let e = 1; e <= t.episode_count; e++) videos.push({ id: `${imdb}:${t.season_number}:${e}`, title: `Episodio ${e}`, season: t.season_number, episode: e, released: new Date(base + (e - 1) * 7 * 864e5).toISOString() });
+    }
+    meta.videos = videos;
+  }
+  return meta;
+}
+
 async function main() {
   if (!KEY) throw new Error('Falta la API key de TMDB');
   fs.rmSync(SALIDA, { recursive: true, force: true });
@@ -69,6 +100,13 @@ async function main() {
     const meta = { id, type: esPelicula ? 'movie' : 'series', name: h.nombre, poster: h.poster || a.image, background: h.fondo || undefined, posterShape: 'poster', description: String(a.synopsis || '').replace(/\s+/g, ' ').trim() };
     if (!imdb) { otros.push(meta); (diag.sinImdb = diag.sinImdb || []).push(`${a.title} -> tmdb:${h.id}`); continue; }
     (esPelicula ? pelis : series).push(meta);
+    const tiene = await cinemetaTiene(esPelicula ? 'movie' : 'series', imdb);
+    if (tiene === false) {
+      const m = await metaRespaldo(h, imdb, meta);
+      fs.mkdirSync(path.join(SALIDA, 'meta', meta.type), { recursive: true });
+      fs.writeFileSync(path.join(SALIDA, 'meta', meta.type, `${imdb}.json`), JSON.stringify({ meta: m }));
+      (diag.metaPropia = diag.metaPropia || []).push(`${a.title} (${imdb})`);
+    } else if (tiene === null) diag.metaSinComprobar = (diag.metaSinComprobar || 0) + 1;
     diag.relaciones.push(`${a.title} -> ${h.nombre} (${imdb})`);
     if ((CORR.alias || {})[a.slug]) (diag.corregidos = diag.corregidos || []).push(`${a.title} -> ${h.nombre}`);
     await dormir(120);
@@ -120,12 +158,12 @@ async function main() {
       catalogos.push({ type: t, id: `jk-tmdb-${t}`, name: `JKAnime - Otros (${t === 'movie' ? 'películas' : 'series'})` });
     }
   }
-  w('manifest.json', { id: 'com.yahir9.jkanime.catalogo', version: '2.2.0', name: 'JKAnime', description: 'Catálogo de anime de JKAnime; las fuentes las pone el plugin JKAnime',
-    resources: ['catalog'], types: ['series', 'movie'], idPrefixes: ['tt', 'tmdb'], catalogs: catalogos, behaviorHints: { configurable: false } });
+  w('manifest.json', { id: 'com.yahir9.jkanime.catalogo', version: '2.3.0', name: 'JKAnime', description: 'Catálogo de anime de JKAnime; las fuentes las pone el plugin JKAnime',
+    resources: ['catalog', 'meta'], types: ['series', 'movie'], idPrefixes: ['tt', 'tmdb'], catalogs: catalogos, behaviorHints: { configurable: false } });
   diag.fin = new Date().toISOString();
   fs.writeFileSync(path.join(SALIDA, 'diagnostico.json'), JSON.stringify(diag, null, 2));
   fs.writeFileSync(path.join(SALIDA, 'index.html'), '<!doctype html><meta charset="utf-8"><title>JKAnime</title><p>Addon de catálogo. <a href="manifest.json">manifest.json</a> · <a href="diagnostico.json">diagnostico.json</a>');
-  console.log(JSON.stringify({ ...diag, relaciones: diag.relaciones.length, sinCoincidencia: diag.sinCoincidencia.length }, null, 2));
+  console.log(JSON.stringify({ ...diag, relaciones: diag.relaciones.length, corregidos: undefined, sinCoincidencia: diag.sinCoincidencia.length }, null, 2));
   if (!catalogos.length) { console.log('Catálogo vacío'); process.exitCode = 1; }
 }
 main().catch((e) => { console.error(e); process.exitCode = 1; });
