@@ -91,7 +91,7 @@ async function getStreams(id, tipo) {
     for (const g of grupos) {
       if (!g || vistos.has(g.m3u8)) continue;
       vistos.add(g.m3u8);
-      salida.push({ name: `Deportes (${g.o.nombre})`, title: titulo, url: g.m3u8, quality: 'En vivo', provider: 'Deportes', headers: { Referer: 'https://tvf90.com/', Origin: 'https://tvf90.com', 'User-Agent': UA } });
+      salida.push({ name: `Deportes (${g.o.nombre}) · En vivo`, title: titulo, url: g.m3u8, quality: '1080p', provider: 'Deportes', headers: { Referer: 'https://tvf90.com/', Origin: 'https://tvf90.com', 'User-Agent': UA } });
     }
     return salida;
   } catch (e) {
