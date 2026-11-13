@@ -1,7 +1,7 @@
 {
   "id": "com.yahir9.jkanime.v2",
   "name": "JKAnime v2",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Proveedor de anime en español (subtitulado y latino) desde jkanime.net",
   "author": "",
   "scrapers": [
@@ -9,13 +9,13 @@
       "id": "jkanime-v2",
       "name": "JKAnime v2",
       "description": "Anime en español (subtitulado, latino y castellano) desde jkanime.net",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "author": "",
       "supportedTypes": [
         "movie",
         "tv"
       ],
-      "filename": "providers/jkanime-v2.js",
+      "filename": "providers/jkanime-202.js",
       "enabled": true
     }
   ]
