@@ -52,7 +52,7 @@ async function main() {
   fs.rmSync(SALIDA, { recursive: true, force: true });
   fs.mkdirSync(path.join(SALIDA, 'catalog', 'series'), { recursive: true });
   fs.mkdirSync(path.join(SALIDA, 'catalog', 'movie'), { recursive: true });
-  const series = [], pelis = [], vistos = new Set();
+  const series = [], pelis = [], otros = [], vistos = new Set();
   for (const a of datos.directorio) {
     diag.jkanime++;
     if ((CORR.excluir || []).includes(a.slug)) { diag.excluidos = (diag.excluidos || 0) + 1; continue; }
@@ -64,8 +64,10 @@ async function main() {
     vistos.add(llave);
     const ext = await tmdb(`${h.tipo}/${h.id}/external_ids`);
     const imdb = ext && ext.imdb_id;
-    if (!imdb) { diag.sinCoincidencia.push(`${a.title} (sin IMDb)`); continue; }
-    const meta = { id: imdb, type: esPelicula ? 'movie' : 'series', name: h.nombre, poster: a.image, posterShape: 'poster', description: String(a.synopsis || '').replace(/\s+/g, ' ').trim() };
+    // Sin código de IMDb: va a una fila aparte con ID de TMDB (tmdb:123); no sé si Nuvio lo abre
+    const id = imdb || `tmdb:${h.id}`;
+    const meta = { id, type: esPelicula ? 'movie' : 'series', name: h.nombre, poster: a.image, posterShape: 'poster', description: String(a.synopsis || '').replace(/\s+/g, ' ').trim() };
+    if (!imdb) { otros.push(meta); (diag.sinImdb = diag.sinImdb || []).push(`${a.title} -> tmdb:${h.id}`); continue; }
     (esPelicula ? pelis : series).push(meta);
     diag.relaciones.push(`${a.title} -> ${h.nombre} (${imdb})`);
     if ((CORR.alias || {})[a.slug]) (diag.corregidos = diag.corregidos || []).push(`${a.title} -> ${h.nombre}`);
@@ -109,8 +111,17 @@ async function main() {
     w(`catalog/${tipo}/${id}.json`, { metas });
     catalogos.push({ type: tipo, id, name: nombre });
   }
-  w('manifest.json', { id: 'com.yahir9.jkanime.catalogo', version: '2.1.0', name: 'JKAnime', description: 'Catálogo de anime de JKAnime; las fuentes las pone el plugin JKAnime',
-    resources: ['catalog'], types: ['series', 'movie'], idPrefixes: ['tt'], catalogs: catalogos, behaviorHints: { configurable: false } });
+  if (otros.length) {
+    const tipos = new Set(otros.map((m) => m.type));
+    for (const t of tipos) {
+      const metas = otros.filter((m) => m.type === t);
+      fs.mkdirSync(path.join(SALIDA, 'catalog', t), { recursive: true });
+      w(`catalog/${t}/jk-tmdb-${t}.json`, { metas });
+      catalogos.push({ type: t, id: `jk-tmdb-${t}`, name: `JKAnime - Otros (${t === 'movie' ? 'películas' : 'series'})` });
+    }
+  }
+  w('manifest.json', { id: 'com.yahir9.jkanime.catalogo', version: '2.2.0', name: 'JKAnime', description: 'Catálogo de anime de JKAnime; las fuentes las pone el plugin JKAnime',
+    resources: ['catalog'], types: ['series', 'movie'], idPrefixes: ['tt', 'tmdb'], catalogs: catalogos, behaviorHints: { configurable: false } });
   diag.fin = new Date().toISOString();
   fs.writeFileSync(path.join(SALIDA, 'diagnostico.json'), JSON.stringify(diag, null, 2));
   fs.writeFileSync(path.join(SALIDA, 'index.html'), '<!doctype html><meta charset="utf-8"><title>JKAnime</title><p>Addon de catálogo. <a href="manifest.json">manifest.json</a> · <a href="diagnostico.json">diagnostico.json</a>');
