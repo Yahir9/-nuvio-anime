@@ -68,16 +68,47 @@ async function main() {
     await dormir(120);
   }
   diag.series = series.length; diag.peliculas = pelis.length;
+  // Catálogos automáticos desde TMDB (se actualizan solos con cada ejecución del flujo)
+  const hoy = new Date();
+  const dia = (n) => new Date(hoy.getTime() + n * 864e5).toISOString().slice(0, 10);
+  const imdbDe = new Map();
+  async function listaTmdb(tipo, params, paginas) {
+    const metas = [];
+    for (let pag = 1; pag <= paginas; pag++) {
+      const r = await tmdb(`discover/${tipo}`, { with_genres: '16', with_origin_country: 'JP', include_adult: 'false', page: String(pag), ...params });
+      for (const x of (r && r.results) || []) {
+        if (!x.poster_path || !(x.overview || '').trim() && !x.vote_count) continue;
+        let imdb = imdbDe.get(x.id);
+        if (imdb === undefined) { const e = await tmdb(`${tipo}/${x.id}/external_ids`); imdb = (e && e.imdb_id) || ''; imdbDe.set(x.id, imdb); await dormir(100); }
+        if (!imdb || metas.some((m) => m.id === imdb)) continue;
+        metas.push({ id: imdb, type: tipo === 'tv' ? 'series' : 'movie', name: x.name || x.title, poster: `https://image.tmdb.org/t/p/w500${x.poster_path}`, posterShape: 'poster', description: String(x.overview || '').replace(/\s+/g, ' ').trim() });
+      }
+    }
+    return metas;
+  }
+  const extra = [
+    ['series', 'tmdb-emision', 'Anime - Emitiéndose ahora', await listaTmdb('tv', { 'air_date.gte': dia(-10), 'air_date.lte': dia(7), sort_by: 'popularity.desc' }, 3)],
+    ['series', 'tmdb-populares', 'Anime - Populares', await listaTmdb('tv', { sort_by: 'popularity.desc', 'vote_count.gte': '150' }, 3)],
+    ['movie', 'tmdb-peliculas', 'Anime - Películas populares', await listaTmdb('movie', { sort_by: 'popularity.desc', 'vote_count.gte': '100' }, 2)]
+  ];
+  diag.tmdb = Object.fromEntries(extra.map(([, id, , metas]) => [id, metas.length]));
+
   const catalogos = [];
   const w = (r, o) => fs.writeFileSync(path.join(SALIDA, r), JSON.stringify(o));
   if (series.length) { w('catalog/series/jk-emision.json', { metas: series }); catalogos.push({ type: 'series', id: 'jk-emision', name: 'JKAnime - En emisión' }); }
   if (pelis.length) { w('catalog/movie/jk-peliculas.json', { metas: pelis }); catalogos.push({ type: 'movie', id: 'jk-peliculas', name: 'JKAnime - Películas' }); }
-  w('manifest.json', { id: 'com.yahir9.jkanime.catalogo', version: '2.0.0', name: 'JKAnime', description: 'Catálogo de anime de JKAnime; las fuentes las pone el plugin JKAnime',
+  for (const [tipo, id, nombre, metas] of extra) {
+    if (!metas.length) continue;
+    fs.mkdirSync(path.join(SALIDA, 'catalog', tipo), { recursive: true });
+    w(`catalog/${tipo}/${id}.json`, { metas });
+    catalogos.push({ type: tipo, id, name: nombre });
+  }
+  w('manifest.json', { id: 'com.yahir9.jkanime.catalogo', version: '2.1.0', name: 'JKAnime', description: 'Catálogo de anime de JKAnime; las fuentes las pone el plugin JKAnime',
     resources: ['catalog'], types: ['series', 'movie'], idPrefixes: ['tt'], catalogs: catalogos, behaviorHints: { configurable: false } });
   diag.fin = new Date().toISOString();
   fs.writeFileSync(path.join(SALIDA, 'diagnostico.json'), JSON.stringify(diag, null, 2));
   fs.writeFileSync(path.join(SALIDA, 'index.html'), '<!doctype html><meta charset="utf-8"><title>JKAnime</title><p>Addon de catálogo. <a href="manifest.json">manifest.json</a> · <a href="diagnostico.json">diagnostico.json</a>');
-  console.log(JSON.stringify({ ...diag, relaciones: diag.relaciones.length }, null, 2));
+  console.log(JSON.stringify({ ...diag, relaciones: diag.relaciones.length, sinCoincidencia: diag.sinCoincidencia.length }, null, 2));
   if (!catalogos.length) { console.log('Catálogo vacío'); process.exitCode = 1; }
 }
 main().catch((e) => { console.error(e); process.exitCode = 1; });
